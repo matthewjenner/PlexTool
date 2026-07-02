@@ -1,0 +1,93 @@
+name: Release
+
+# Build a Velopack release on every push to main. Idempotent: if the GitHub release for
+# the current VersionPrefix already exists, the job exits clean without doing anything.
+# So: bump the version locally with Scripts/bump-version.sh -> commit -> push -> release.
+# A plain "fix a typo" commit without a bump just runs the no-op path.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Read version from Directory.Build.props
+        id: version
+        run: |
+          v=$(grep -oE '<VersionPrefix>[^<]+</VersionPrefix>' Directory.Build.props \
+              | sed -E 's|</?VersionPrefix>||g' \
+              | tr -d '[:space:]')
+          if [[ -z "$v" ]]; then
+              echo "Could not read VersionPrefix from Directory.Build.props" >&2
+              exit 1
+          fi
+          echo "VERSION=$v"  >> "$GITHUB_OUTPUT"
+          echo "TAG=v$v"     >> "$GITHUB_OUTPUT"
+          echo "Version: $v"
+
+      - name: Check whether this release already exists
+        id: tag-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.version.outputs.TAG }}"
+          if gh release view "$tag" --json tagName >/dev/null 2>&1; then
+              echo "Release $tag already exists - nothing to do."
+              echo "SKIP=true"  >> "$GITHUB_OUTPUT"
+          else
+              echo "SKIP=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore
+        if: steps.tag-check.outputs.SKIP == 'false'
+        run: dotnet restore
+
+      - name: Test
+        if: steps.tag-check.outputs.SKIP == 'false'
+        run: dotnet test --no-restore --configuration Release
+
+      - name: Publish
+        if: steps.tag-check.outputs.SKIP == 'false'
+        run: |
+          dotnet publish Src/PlexTool.App/PlexTool.App.csproj \
+              --configuration Release \
+              --runtime win-x64 \
+              --self-contained true \
+              --output publish
+
+      - name: Install Velopack CLI
+        if: steps.tag-check.outputs.SKIP == 'false'
+        run: dotnet tool install -g vpk --version 1.2.0
+
+      - name: Pack with Velopack
+        if: steps.tag-check.outputs.SKIP == 'false'
+        run: |
+          vpk pack \
+              --packId PlexTool \
+              --packVersion "${{ steps.version.outputs.VERSION }}" \
+              --packDir publish \
+              --mainExe PlexTool.App.exe
+
+      - name: Create GitHub Release
+        if: steps.tag-check.outputs.SKIP == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.version.outputs.TAG }}"
+          gh release create "$tag" Releases/* --title "$tag" --notes ""

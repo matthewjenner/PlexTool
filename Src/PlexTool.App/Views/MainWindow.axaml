@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PlexTool.App.ViewModels"
+        x:Class="PlexTool.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/icon.ico"
+        Title="{Binding Title}"
+        Width="960" Height="640"
+        MinWidth="720" MinHeight="480"
+        WindowStartupLocation="CenterScreen">
+
+    <DockPanel>
+        <!-- Update banner: docked at the very top, shown only when a newer release exists. -->
+        <Border DockPanel.Dock="Top"
+                IsVisible="{Binding IsUpdateBannerVisible}"
+                Background="#1F6FEB" Padding="12,8">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           VerticalAlignment="Center"
+                           Foreground="White"
+                           Text="{Binding UpdateBannerText}" />
+                <Button Grid.Column="1" Margin="8,0,0,0"
+                        Content="Install"
+                        IsEnabled="{Binding CanInstallUpdate}"
+                        Command="{Binding InstallUpdateCommand}" />
+                <Button Grid.Column="2" Margin="8,0,0,0"
+                        Content="Skip this version"
+                        Command="{Binding SkipUpdateCommand}" />
+                <Button Grid.Column="3" Margin="8,0,0,0"
+                        Content="Later"
+                        Command="{Binding DismissUpdateCommand}" />
+            </Grid>
+        </Border>
+
+        <TabControl Margin="8">
+            <TabItem Header="Import">
+                <TextBlock Margin="16" TextWrapping="Wrap"
+                           Text="Staging to server import. Arrives in phase 4." />
+            </TabItem>
+            <TabItem Header="New Structure">
+                <TextBlock Margin="16" TextWrapping="Wrap"
+                           Text="Create movie / show folders locally or on the server. Arrives in phase 2." />
+            </TabItem>
+            <TabItem Header="Rename / Normalize">
+                <TextBlock Margin="16" TextWrapping="Wrap"
+                           Text="Rename to Plex form with dry-run preview, in place. Arrives in phase 3." />
+            </TabItem>
+            <TabItem Header="Cleanup">
+                <TextBlock Margin="16" TextWrapping="Wrap"
+                           Text="Empty-folder sweep, local or remote, once or watch. Arrives in phase 5." />
+            </TabItem>
+            <TabItem Header="Settings">
+                <TextBlock Margin="16" TextWrapping="Wrap"
+                           Text="SSH, Plex, paths, naming and secrets. Arrives in phase 1." />
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

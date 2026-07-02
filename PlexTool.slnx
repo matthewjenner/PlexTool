@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Src/">
+    <Project Path="Src/PlexTool.App/PlexTool.App.csproj" />
+    <Project Path="Src/PlexTool.Core/PlexTool.Core.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/PlexTool.Core.Tests/PlexTool.Core.Tests.csproj" />
+  </Folder>
+</Solution>

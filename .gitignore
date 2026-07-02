@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+publish/
+Releases/
+
+# Velopack local packaging output
+*.nupkg
+
+# IDE / editor
+.vs/
+.idea/
+*.user
+
+# OS cruft
+Thumbs.db
+.DS_Store
+
+# Secrets must never be committed. They live under %APPDATA%\PlexTool at runtime and are
+# DPAPI-encrypted, so nothing sensitive is in the tree - but ignore any stray local copies.
+secrets.dat
+*.secrets.json
+settings.local.json
