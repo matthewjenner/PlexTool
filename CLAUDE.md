@@ -132,6 +132,25 @@ user confirms -> apply**. That is the GUI form of the scripts' universal `-WhatI
 - **Icon**: `Assets\icon.ico` and the `<ApplicationIcon>` reference are deferred to P6 - the
   csproj currently has no app icon on purpose.
 
+## Input safety and test rigor (required)
+
+Paths and names are adversarial input - a media title or a configured path can contain whitespace,
+trailing slashes, or traversal/injection attempts. Rules:
+
+- **Build remote paths only from safe segments.** `PosixPath.IsSafeSegment` rejects "."/".."
+  traversal, embedded '/', control chars (incl. NUL/newline), and surrounding whitespace. The P2
+  naming sanitizer must produce segments that pass it.
+- **Normalize before comparing/joining.** Use `PosixPath.Normalize` / `Combine` / `TranslatePrefix`
+  (Core), never raw string concatenation or `StartsWith`. Prefix matching is segment-boundary safe
+  (so `/srv/plex-media` never matches `/srv/plex-media-extra`) and trailing-slash tolerant.
+- **No shell string-building with user paths.** Prefer SFTP protocol operations (SftpClient
+  CreateDirectory/RenameFile/Delete) which take path arguments directly - no shell parsing, so no
+  command injection. If a shell command is ever unavoidable (e.g. chown), single-quote every path
+  argument and reject names failing `IsSafeSegment`. This matters most in P4 (import/chown) and P5
+  (cleanup).
+- **Tests must cover whitespace, trailing slashes, and injection/traversal** for any path or name
+  logic - see `PosixPathTests` as the template. New naming/planning logic gets the same treatment.
+
 ## Common tasks
 
 - **Add an app-wide setting**: add a property to `AppSettings` (non-secret) or `Secrets`

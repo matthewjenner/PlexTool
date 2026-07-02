@@ -1,0 +1,292 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlexTool.App.ViewModels"
+             xmlns:svc="using:PlexTool.App.Services"
+             x:Class="PlexTool.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,16,0,6" />
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+        <Style Selector="TextBlock.status">
+            <Setter Property="Foreground" Value="#8A8A8A" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="#8A8A8A" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="Grid.row">
+            <Setter Property="Margin" Value="0,3,0,3" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Two rows: the scroll area (*) and a sticky footer (Auto). The footer owns its own row, so
+         it reserves layout space and never overlaps the scrolling content above it. -->
+    <Grid RowDefinitions="*,Auto">
+
+        <!-- Padding lives on the inner content, NOT on the ScrollViewer: ScrollViewer.Padding is
+             not included in the scrollable extent, so the bottom padding worth of content becomes
+             unreachable and the last field hides behind the footer. -->
+        <ScrollViewer Grid.Row="0" x:Name="SettingsScroll" ClipToBounds="True">
+        <StackPanel MaxWidth="760" HorizontalAlignment="Left" Margin="20">
+
+            <!-- ================= SSH ================= -->
+            <TextBlock Classes="section" Text="Media storage (SSH / SFTP)" />
+            <TextBlock Classes="hint"
+                       Text="The box where the media files physically live and where PlexTool writes them. This is your file server in a split setup, or the Plex box itself if unified. PlexTool connects over SSH/SFTP - no Windows drive mapping needed." />
+
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Host / IP" />
+                <TextBox Grid.Column="1" PlaceholderText="10.10.0.220" Text="{Binding SshHost}"
+                         ToolTip.Tip="Hostname or IP of the storage box, e.g. 10.10.0.220 or fileserver.local." />
+            </Grid>
+            <Grid Classes="row" ColumnDefinitions="140,120">
+                <TextBlock Classes="label" Grid.Column="0" Text="Port" />
+                <NumericUpDown Grid.Column="1" Minimum="1" Maximum="65535" Increment="1"
+                               FormatString="0" Value="{Binding SshPort}"
+                               ToolTip.Tip="SSH port on the storage box. Default is 22." />
+            </Grid>
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Username" />
+                <TextBox Grid.Column="1" PlaceholderText="plex" Text="{Binding SshUsername}"
+                         ToolTip.Tip="The Linux user PlexTool logs in as. Ideally a user in the group that owns the media, so files land with the right ownership." />
+            </Grid>
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Auth method" />
+                <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="220"
+                          ItemsSource="{Binding AuthMethods}"
+                          SelectedItem="{Binding SshAuthMethod}"
+                          ToolTip.Tip="PrivateKey is recommended - no password is stored. Password auth stores the password (DPAPI-encrypted)." />
+            </Grid>
+
+            <!-- Private key fields -->
+            <Grid Classes="row" ColumnDefinitions="140,*,120" IsVisible="{Binding UsesPrivateKey}">
+                <TextBlock Classes="label" Grid.Column="0" Text="Private key" />
+                <TextBox Grid.Column="1" PlaceholderText="C:\Users\you\.ssh\id_ed25519"
+                         Text="{Binding SshPrivateKeyPath}"
+                         ToolTip.Tip="Path to your SSH private key file on this Windows machine. The matching public key must be in the server user's ~/.ssh/authorized_keys." />
+                <Button Grid.Column="2" Margin="8,0,0,0" Content="Browse..." Click="BrowseKey"
+                        ToolTip.Tip="Pick the private key file." />
+            </Grid>
+            <Grid Classes="row" ColumnDefinitions="140,*" IsVisible="{Binding UsesPrivateKey}">
+                <TextBlock Classes="label" Grid.Column="0" Text="Key passphrase" />
+                <TextBox Grid.Column="1" PasswordChar="●"
+                         RevealPassword="{Binding ShowSecrets}"
+                         PlaceholderText="(only if the key is encrypted)"
+                         Text="{Binding SshKeyPassphrase}"
+                         ToolTip.Tip="The passphrase protecting your private key, if it has one. Stored DPAPI-encrypted. Leave blank for an unencrypted key." />
+            </Grid>
+
+            <!-- Password field -->
+            <Grid Classes="row" ColumnDefinitions="140,*" IsVisible="{Binding UsesPassword}">
+                <TextBlock Classes="label" Grid.Column="0" Text="Password" />
+                <TextBox Grid.Column="1" PasswordChar="●"
+                         RevealPassword="{Binding ShowSecrets}"
+                         Text="{Binding SshPassword}"
+                         ToolTip.Tip="The SSH login password. Stored DPAPI-encrypted, never in settings.json or logs." />
+            </Grid>
+
+            <CheckBox Margin="140,4,0,0" Content="Show secrets" IsChecked="{Binding ShowSecrets}"
+                      ToolTip.Tip="Reveal the masked secret fields (passphrase, password, Plex token) so you can check them." />
+
+            <Grid Classes="row" ColumnDefinitions="140,*,120">
+                <TextBlock Classes="label" Grid.Column="0" Text="Trusted host key" />
+                <TextBox Grid.Column="1" IsReadOnly="True" PlaceholderText="(learned on first connect)"
+                         Text="{Binding SshHostKeyFingerprint}"
+                         ToolTip.Tip="The server's SHA-256 host-key fingerprint, remembered on the first successful connection. If it ever changes, PlexTool refuses to connect (possible man-in-the-middle)." />
+                <Button Grid.Column="2" Margin="8,0,0,0" Content="Forget"
+                        Command="{Binding ClearHostKeyCommand}"
+                        ToolTip.Tip="Forget the trusted fingerprint. Only do this if the server legitimately changed (reinstall, new key)." />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Margin="140,8,0,0" Spacing="10">
+                <Button Content="Test connection"
+                        Command="{Binding TestSshCommand}"
+                        IsEnabled="{Binding !IsSshBusy}"
+                        ToolTip.Tip="Connect to the storage box to verify the settings. A successful test also saves your settings automatically." />
+            </StackPanel>
+            <TextBlock Classes="status" Text="{Binding SshStatus}" />
+
+            <!-- ================= Media library paths ================= -->
+            <TextBlock Classes="section" Text="Media library paths (on the storage box)" />
+            <TextBlock Classes="hint"
+                       Text="Absolute paths on the storage box where the Movies and Shows libraries live. PlexTool creates the per-title folders under these and moves imported files into them." />
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Movies root" />
+                <TextBox Grid.Column="1" PlaceholderText="/srv/plex-media/movies" Text="{Binding RemoteMoviesPath}"
+                         ToolTip.Tip="Where movie folders go, e.g. /srv/plex-media/movies. A movie becomes: /srv/plex-media/movies/Movie Name (Year)/Movie Name (Year).ext" />
+            </Grid>
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Shows root" />
+                <TextBox Grid.Column="1" PlaceholderText="/srv/plex-media/shows" Text="{Binding RemoteShowsPath}"
+                         ToolTip.Tip="Where show folders go, e.g. /srv/plex-media/shows. An episode becomes: /srv/plex-media/shows/Show Name/Season 01/Show Name - S01E01.ext" />
+            </Grid>
+
+            <!-- ================= Staging ================= -->
+            <TextBlock Classes="section" Text="Staging" />
+            <TextBlock Classes="hint"
+                       Text="The folder on the storage box where new media arrives before you import it (your downloads folder). Because it is on the same filesystem as the library, import is an instant server-side move, not a network copy. PlexTool never touches this folder on its own - it only acts on items you explicitly import." />
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Staging folder" />
+                <TextBox Grid.Column="1" PlaceholderText="/srv/plex-media/downloads" Text="{Binding StagingPath}"
+                         ToolTip.Tip="Absolute path on the storage box, e.g. /srv/plex-media/downloads. This is a remote path (on the server), not a Windows folder." />
+            </Grid>
+
+            <!-- ================= Topology ================= -->
+            <TextBlock Classes="section" Text="Topology" />
+            <CheckBox Content="Plex runs on a separate box from the media storage (mounted at a different path)"
+                      IsChecked="{Binding PlexStorageIsSeparate}"
+                      ToolTip.Tip="Check this if Plex is a different machine that mounts the storage share at a different path (split rack setup). Uncheck if Plex and the storage are the same box (unified)." />
+            <TextBlock Classes="hint"
+                       Text="When on, files are written to the storage paths above, and the Plex scan is pointed at the mount path below. When off (unified), the two are identical and no translation happens." />
+            <Grid Classes="row" ColumnDefinitions="140,*" IsVisible="{Binding PlexStorageIsSeparate}">
+                <TextBlock Classes="label" Grid.Column="0" Text="Storage prefix" />
+                <TextBox Grid.Column="1" PlaceholderText="/srv/plex-media" Text="{Binding StoragePathPrefix}"
+                         ToolTip.Tip="The path prefix on the storage box, e.g. /srv/plex-media - the parent of your movies/shows/downloads folders as they exist on the file server." />
+            </Grid>
+            <Grid Classes="row" ColumnDefinitions="140,*" IsVisible="{Binding PlexStorageIsSeparate}">
+                <TextBlock Classes="label" Grid.Column="0" Text="Plex mount prefix" />
+                <TextBox Grid.Column="1" PlaceholderText="/mnt/media" Text="{Binding PlexMountPrefix}"
+                         ToolTip.Tip="The path where that same media appears on the Plex box, e.g. /mnt/media. PlexTool swaps the storage prefix for this when telling Plex which folder to scan." />
+            </Grid>
+
+            <!-- ================= Plex ================= -->
+            <TextBlock Classes="section" Text="Plex server (for library scans)" />
+            <TextBlock Classes="hint"
+                       Text="The Plex Media Server itself, reached over HTTP (not SSH). PlexTool uses this only to trigger a library scan after an import." />
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Base URL" />
+                <TextBox Grid.Column="1" PlaceholderText="http://10.10.0.220:32400" Text="{Binding PlexBaseUrl}"
+                         ToolTip.Tip="Plex address including port, e.g. http://10.10.0.220:32400 (no /web). If a plain-HTTP test is refused, set Plex Settings > Network > Secure connections to Preferred, not Required." />
+            </Grid>
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Plex token" />
+                <TextBox Grid.Column="1" PasswordChar="●"
+                         RevealPassword="{Binding ShowSecrets}"
+                         PlaceholderText="X-Plex-Token" Text="{Binding PlexToken}"
+                         ToolTip.Tip="Your Plex X-Plex-Token. Treat it like a password. Stored DPAPI-encrypted. See 'How do I get this?' below." />
+            </Grid>
+
+            <!-- Token help: copyable command to run on the Plex server -->
+            <Expander Margin="140,4,0,0" Header="How do I get the Plex token?">
+                <StackPanel Spacing="6" Margin="0,4,0,0">
+                    <TextBlock Classes="hint"
+                               Text="Easiest (web app): sign in to Plex as the server owner, open any movie/episode, choose 'Get Info', click 'View XML' at the lower-left, then copy the X-Plex-Token=... value from the end of that page's URL." />
+                    <TextBlock Classes="hint" FontWeight="SemiBold"
+                               Text="Most stable - run this ON THE PLEX SERVER (not the file server) to print the long-lived token:" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" x:Name="TokenCommandBox" IsReadOnly="True"
+                                 FontFamily="Consolas, monospace" TextWrapping="Wrap"
+                                 Text="grep -o 'PlexOnlineToken=&quot;[^&quot;]*&quot;' &quot;/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml&quot;" />
+                        <Button Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Top"
+                                Content="Copy" Click="CopyTokenCommand"
+                                ToolTip.Tip="Copy the command to the clipboard, then run it in an SSH session on the Plex server." />
+                    </Grid>
+                    <TextBlock Classes="hint"
+                               Text="Copy the value shown inside the quotes into the Plex token box. If your Plex install uses a non-default path, adjust the Preferences.xml location." />
+                </StackPanel>
+            </Expander>
+
+            <StackPanel Orientation="Horizontal" Margin="140,10,0,0">
+                <Button Content="Test / load libraries"
+                        Command="{Binding LoadPlexSectionsCommand}"
+                        IsEnabled="{Binding !IsPlexBusy}"
+                        ToolTip.Tip="Contact Plex, verify the token, and list your libraries so you can map Movies and Shows. A successful load also saves your settings." />
+            </StackPanel>
+            <TextBlock Classes="status" Text="{Binding PlexStatus}" />
+
+            <Grid Classes="row" ColumnDefinitions="140,*" Margin="0,6,0,0">
+                <TextBlock Classes="label" Grid.Column="0" Text="Movies library" />
+                <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding PlexSections}"
+                          SelectedItem="{Binding SelectedMoviesSection}"
+                          ToolTip.Tip="Which Plex library is your Movies library. Populated after 'Test / load libraries'.">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="svc:PlexSection">
+                            <TextBlock Text="{Binding Display}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Shows library" />
+                <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding PlexSections}"
+                          SelectedItem="{Binding SelectedShowsSection}"
+                          ToolTip.Tip="Which Plex library is your TV Shows library. Populated after 'Test / load libraries'.">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="svc:PlexSection">
+                            <TextBlock Text="{Binding Display}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+
+            <!-- ================= Naming ================= -->
+            <TextBlock Classes="section" Text="Naming" />
+            <TextBlock Classes="hint"
+                       Text="How new and normalized files are named. Plex recommended is the safe default that Plex matches best." />
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" Text="Scheme" />
+                <ComboBox Grid.Column="1" HorizontalAlignment="Left" MinWidth="260"
+                          ItemsSource="{Binding NamingSchemes}"
+                          SelectedItem="{Binding NamingScheme}"
+                          ToolTip.Tip="PlexRecommended: 'Show Name - S01E01' and 'Movie Name (Year)'. ScriptLegacy: the older 'Show Name s01e01' form from your PowerShell scripts." />
+            </Grid>
+
+            <!-- ================= Cleanup defaults ================= -->
+            <TextBlock Classes="section" Text="Cleanup defaults" />
+            <TextBlock Classes="hint"
+                       Text="Defaults for the Cleanup tab, which removes EMPTY folders only (never files). These are just starting values - the Cleanup tab always previews before deleting anything." />
+            <Grid Classes="row" ColumnDefinitions="140,120">
+                <TextBlock Classes="label" Grid.Column="0" Text="Min age (minutes)" />
+                <NumericUpDown Grid.Column="1" Minimum="0" Maximum="1440" Increment="1"
+                               FormatString="0" Value="{Binding CleanupMinAgeMinutes}"
+                               ToolTip.Tip="An empty folder must have been untouched for at least this long before it can be removed. Protects folders that are mid-write / mid-transfer." />
+            </Grid>
+            <CheckBox Margin="140,3,0,3" Content="Prune now-empty parent folders too"
+                      IsChecked="{Binding CleanupPruneParents}"
+                      ToolTip.Tip="After deleting an empty folder, if its parent is now empty as a result, delete that too - walking upward until a non-empty folder or the library root." />
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" VerticalAlignment="Top" Margin="0,4,12,0"
+                           Text="Exclusions" />
+                <TextBox Grid.Column="1" AcceptsReturn="True" Height="80"
+                         PlaceholderText="one folder name per line"
+                         Text="{Binding CleanupExclusionsText}"
+                         ToolTip.Tip="Folder names never touched during cleanup, one per line - e.g. system/hidden folders like @eaDir (Synology), .stfolder (Syncthing), $RECYCLE.BIN." />
+            </Grid>
+            <Grid Classes="row" ColumnDefinitions="140,*">
+                <TextBlock Classes="label" Grid.Column="0" VerticalAlignment="Top" Margin="0,4,12,0"
+                           Text="Media extensions" />
+                <TextBox Grid.Column="1" x:Name="MediaExtensionsBox" AcceptsReturn="True" Height="60"
+                         PlaceholderText=".mkv, .mp4, .srt ..."
+                         Text="{Binding MediaExtensionsText}"
+                         ToolTip.Tip="Which file types count as media (video + subtitles) when renaming and importing. Used to decide which files to rename; everything else is left alone." />
+            </Grid>
+
+            <Border Height="12" />
+        </StackPanel>
+        </ScrollViewer>
+
+        <!-- Sticky footer: always visible, in its own row so it never covers the content above. -->
+        <Border Grid.Row="1" x:Name="SaveFooter" Background="{DynamicResource SystemRegionBrush}"
+                BorderBrush="#33808080" BorderThickness="0,1,0,0" Padding="20,10">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button Content="Save settings" Command="{Binding SaveCommand}" Padding="16,6"
+                        ToolTip.Tip="Persist everything now. Note: a successful Test connection or Test / load libraries already saves automatically." />
+                <TextBlock Classes="status" VerticalAlignment="Center" Text="{Binding SaveStatus}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -6,13 +6,27 @@ boundary: check off done items, refresh **Current state**, and append to the **D
 
 ## Current state
 
-- **Phase**: P0 complete; P1 is next.
-- **Build status**: `dotnet build` clean (0 warnings), `dotnet run` launches the shell window.
-  No tests yet (Core has no logic yet).
-- **What runs today**: a tabbed main window (Import / New Structure / Rename / Cleanup / Settings
-  as placeholders), a working update banner wired to Velopack + the GitHub repo, and settings +
-  DPAPI secret persistence plumbed through `AppHost` (no Settings UI yet).
-- **Next**: P1 - Settings tab and the SSH + Plex connections.
+- **Phase**: P1 code-complete (pending the user's live SSH/Plex connection test); P2 is next.
+- **Build status**: `dotnet build` clean (0 warnings), `dotnet run` launches with a working
+  Settings tab. No Core tests yet (first ones land in P2 with the naming logic).
+- **What runs today**: the tabbed window with a **functional, annotated Settings tab** - SSH
+  connection (host/port/user, key or password, host-key trust-on-first-use, Test), remote
+  Movies/Shows paths, split/unified topology with prefix mapping, staging path (remote), Plex URL +
+  token with "Test / load libraries" and Movies/Shows mapping, naming scheme, cleanup defaults.
+  Tooltips on every field, a copyable "get your Plex token" command, a sticky (own-Grid-row) Save
+  footer, and auto-save on a successful test. Save persists non-secret settings to `settings.json`
+  and secrets to the DPAPI-encrypted `secrets.dat`. The update banner still works.
+- **Tests**: `dotnet test` green - 53 `PosixPathTests` (whitespace, trailing slashes, prefix-boundary,
+  traversal/injection) plus 4 `SettingsLayoutTests` (headless UI, one per window size). `Core/Paths/PosixPath.cs`
+  is the pure, tested path layer; `AppSettings.ToPlexPath` delegates to it (fixed a prefix-boundary bug
+  where `/srv/plex-media` matched `/srv/plex-media-extra`).
+- **Settings footer overlap - fixed.** The Save footer hid the last field by a constant ~44.5px at every
+  window size. Root cause: `ScrollViewer.Padding` is NOT counted in the scrollable extent, so the bottom
+  padding worth of content was unreachable. Fix: moved padding off the ScrollViewer onto the inner content
+  (`Margin` on the StackPanel). `SettingsLayoutTests` now scrolls to the end and asserts the last field is
+  visible above the footer, at 4 window sizes - a permanent regression guard for this whole class of bug.
+- **Next**: P2 - New Structure + the Core naming/parser logic (sanitizer producing IsSafeSegment-safe
+  names) and its unit tests.
 
 ## Phases
 
@@ -30,14 +44,15 @@ boundary: check off done items, refresh **Current state**, and append to the **D
 - [x] CLAUDE.md, Docs (DESIGN, TECHARCH, workplan), memories
 - [x] Smoke test: builds, runs, no crash
 
-### P1 - Settings + connections
-- [ ] Settings tab: SSH (host/port/user, key path or password, auth toggle), remote Movies/Shows
+### P1 - Settings + connections  [CODE-COMPLETE]
+- [x] Settings tab: SSH (host/port/user, key path or password, auth toggle), remote Movies/Shows
       paths, Plex URL + token, local staging path, naming scheme, cleanup defaults
-- [ ] Secrets entered here, redacted (dots), stored via SecretStore
-- [ ] `ConnectionManager` + `SftpMediaFileSystem` + `LocalMediaFileSystem` (implement IMediaFileSystem)
-- [ ] SSH "Test connection" with host-key trust-on-first-use
-- [ ] `PlexClient`: "Test" + list sections + map Movies/Shows
-- [ ] Smoke: connect to the server, list a directory; hit Plex, list libraries
+- [x] Secrets entered here, redacted (dots, "Show secrets" toggle), stored via SecretStore
+- [x] `IMediaFileSystem` (Core) + `SftpMediaFileSystem` + `LocalMediaFileSystem` (App)
+- [x] `SshService` "Test connection" with host-key trust-on-first-use (SHA-256 fingerprint)
+- [x] `PlexClient`: "Test / load libraries" + list sections + map Movies/Shows
+- [ ] Live smoke (needs the user's server): Test SSH connects; Test Plex lists libraries
+      (build + UI launch verified; live connection is the user's to confirm)
 
 ### P2 - New Structure
 - [ ] Core: NameSanitizer, EpisodeParser, PlexNamer (+ tests)
@@ -70,6 +85,17 @@ boundary: check off done items, refresh **Current state**, and append to the **D
   Side effect: no elevation / UAC needed at all (asInvoker manifest).
 - **Reach the server over SSH/SFTP** (not the mounted SMB share) for robustness and to run remote
   structure/rename/cleanup/permissions over one connection.
+- **Split vs unified topology (configurable):** SSH/SFTP targets the STORAGE box (where files
+  physically live); the Plex API (HTTP + token) targets the PLEX box. In the user's setup these are
+  two Ubuntu boxes: a file server exposing the media (native path e.g. `/srv/plex-media`) and a
+  Plex box that mounts it (e.g. `/mnt/media`). A "Plex runs on a separate box" toggle
+  (`PlexStorageIsSeparate`) plus a storage-prefix -> plex-mount-prefix pair drives
+  `AppSettings.ToPlexPath()`, so path-scoped Plex scans use the mount path while writes use the
+  native path. Unified setups turn the toggle off (no translation). Key correction that drove
+  this: Plex library scans are the HTTP API + token, NOT an SSH command - so you never SSH into
+  the Plex box, and it is always one SSH credential (storage) + one Plex token, never two SSH creds.
+  Writing to the file server natively (one hop) beats writing through the Plex box's CIFS mount
+  (double hop + permission quirks).
 - **Secrets**: non-secret settings in `settings.json`; secrets (SSH password/passphrase, Plex
   token) in a separate DPAPI-encrypted `secrets.dat` (CurrentUser). Prefer key-based SSH auth.
   Hard requirement from the user: no leaked passwords.
@@ -80,6 +106,24 @@ boundary: check off done items, refresh **Current state**, and append to the **D
 - **Versions**: latest as of 2026-07-02, except Avalonia stays on 12.x (no stable 13) and
   FluentAssertions stays on 7.x (8.x is a paid license).
 - **Core/App split**: `IMediaFileSystem` in Core, implementations in App - the Klakr purity rule.
+
+- **Staging is REMOTE, on the storage box** (e.g. `/srv/plex-media/downloads`), not a local
+  Windows folder - the user's downloads land on the file server next to movies/shows. Consequence:
+  import is a fast server-side move (SFTP rename within one filesystem), NOT a network upload, so
+  the P4 "upload with progress" model only applies if a source is ever off-box. `AppSettings.StagingPath`
+  (was `LocalStagingPath`) holds this remote path.
+- **Settings persistence UX** (P1 fix): Save was a single button buried at the bottom of a long
+  scroll, so users tested a connection and never saved -> blank after restart. Fixed by (a) a sticky
+  docked Save footer always visible, and (b) auto-save after a successful Test connection / Test
+  load-libraries. Also fixed a bug where saving before (re)loading Plex libraries could wipe the
+  stored section mapping - BuildConfig now falls back to the previously saved section ids.
+
+## Backlog (next phase)
+
+- **Unify xunit versions across all test projects.** `PlexTool.App.Tests` uses xunit **v3** (required
+  by Avalonia.Headless.XUnit 12.0.5), while `PlexTool.Core.Tests` is still xunit **v2** (2.9.3). The
+  user does not want version mixing - migrate `PlexTool.Core.Tests` to xunit v3 next phase so the
+  whole solution is on one version.
 
 ## Known edges / TODO
 

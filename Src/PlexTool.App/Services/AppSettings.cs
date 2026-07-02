@@ -51,13 +51,28 @@ public sealed record AppSettings
     /// </summary>
     public string? SshHostKeyFingerprint { get; init; }
 
-    // ---- Remote library layout ----
+    // ---- Media library layout (paths on the STORAGE box, where files are written) ----
 
-    /// <summary>Absolute path on the server to the Movies library root (e.g. "/srv/plex/movies").</summary>
+    /// <summary>Absolute path on the storage box to the Movies library root (e.g. "/srv/plex-media/movies").</summary>
     public string RemoteMoviesPath { get; init; } = "";
 
-    /// <summary>Absolute path on the server to the TV Shows library root (e.g. "/srv/plex/shows").</summary>
+    /// <summary>Absolute path on the storage box to the TV Shows library root (e.g. "/srv/plex-media/shows").</summary>
     public string RemoteShowsPath { get; init; } = "";
+
+    // ---- Topology: is Plex a separate box from the media storage? ----
+
+    /// <summary>
+    /// True when Plex runs on a different box than the media storage, mounting the storage at a
+    /// different path (split setup). When true, <see cref="StoragePathPrefix"/> is translated to
+    /// <see cref="PlexMountPrefix"/> for Plex path-scoped scans. False = unified (same paths).
+    /// </summary>
+    public bool PlexStorageIsSeparate { get; init; } = true;
+
+    /// <summary>The path prefix on the storage box we write to, e.g. "/srv/plex-media" (split only).</summary>
+    public string StoragePathPrefix { get; init; } = "";
+
+    /// <summary>The path prefix the same media appears at on the Plex box, e.g. "/mnt/media" (split only).</summary>
+    public string PlexMountPrefix { get; init; } = "";
 
     // ---- Plex server (for scan triggers) ----
 
@@ -70,10 +85,14 @@ public sealed record AppSettings
     /// <summary>The Plex library section id mapped to TV Shows. Null until mapped.</summary>
     public string? PlexShowsSectionId { get; init; }
 
-    // ---- Local staging ----
+    // ---- Staging ----
 
-    /// <summary>Local folder new media lands in before import (downloads / staging). Empty until configured.</summary>
-    public string LocalStagingPath { get; init; } = "";
+    /// <summary>
+    /// The folder where freshly acquired media lands before import, as a path ON THE STORAGE BOX
+    /// (e.g. "/srv/plex-media/downloads"). Because it sits on the same filesystem as the library,
+    /// import is a fast server-side move (rename), not a network transfer. Empty until configured.
+    /// </summary>
+    public string StagingPath { get; init; } = "";
 
     // ---- Naming ----
 
@@ -105,4 +124,14 @@ public sealed record AppSettings
     /// latest, the update banner stays hidden; a newer release re-arms it.
     /// </summary>
     public string? SkippedUpdateVersion { get; init; }
+
+    /// <summary>
+    /// Translates a path on the storage box into the path Plex sees, for path-scoped library
+    /// scans. In a unified setup the path is returned unchanged; in a split setup the storage
+    /// prefix is swapped for the Plex mount prefix (segment-boundary safe, trailing-slash tolerant).
+    /// </summary>
+    public string ToPlexPath(string storagePath) =>
+        PlexStorageIsSeparate
+            ? Core.Paths.PosixPath.TranslatePrefix(storagePath, StoragePathPrefix, PlexMountPrefix)
+            : storagePath;
 }

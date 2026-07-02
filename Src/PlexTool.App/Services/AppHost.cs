@@ -1,9 +1,12 @@
+using PlexTool.App.Backends;
+
 namespace PlexTool.App.Services;
 
 /// <summary>
 /// Composition root. Owns the persisted configuration (non-secret <see cref="AppSettings"/>
-/// plus DPAPI-encrypted <see cref="Secrets"/>) and the update poller. ViewModels take an
-/// <see cref="AppHost"/> and read/update state through it - they never touch the stores directly.
+/// plus DPAPI-encrypted <see cref="Secrets"/>), the connection services, and the update poller.
+/// ViewModels take an <see cref="AppHost"/> and read/update state through it - they never touch
+/// the stores directly.
 /// </summary>
 public sealed class AppHost : IDisposable
 {
@@ -22,6 +25,12 @@ public sealed class AppHost : IDisposable
         // Built last so it can read Settings.SkippedUpdateVersion and call back into UpdateSettings.
         _updates = new UpdateService(this);
     }
+
+    /// <summary>Connects to the media server over SSH/SFTP (auth wiring + host-key TOFU).</summary>
+    public SshService Ssh { get; } = new();
+
+    /// <summary>Talks to the Plex server (list sections now; scan triggers in phase 4).</summary>
+    public PlexClient Plex { get; } = new();
 
     /// <summary>App-wide, non-secret settings. Update via <see cref="UpdateSettings"/>.</summary>
     public AppSettings Settings { get; private set; }

@@ -15,6 +15,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(AppHost host)
     {
         _host = host;
+        Settings = new SettingsViewModel(host);
 
         _host.Updates.UpdateAvailableChanged += OnUpdateAvailableChanged;
         AvailableUpdateVersion = _host.Updates.AvailableVersion;
@@ -22,6 +23,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>Window title, e.g. "PlexTool v0.1.0".</summary>
     public string Title => $"PlexTool v{AppVersion.Display}";
+
+    /// <summary>Backs the Settings tab (SSH, Plex, paths, naming, cleanup defaults, secrets).</summary>
+    public SettingsViewModel Settings { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUpdateBannerVisible))]

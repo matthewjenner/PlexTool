@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:PlexTool.App.ViewModels"
+        xmlns:views="using:PlexTool.App.Views"
         x:Class="PlexTool.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/icon.ico"
@@ -50,8 +51,7 @@
                            Text="Empty-folder sweep, local or remote, once or watch. Arrives in phase 5." />
             </TabItem>
             <TabItem Header="Settings">
-                <TextBlock Margin="16" TextWrapping="Wrap"
-                           Text="SSH, Plex, paths, naming and secrets. Arrives in phase 1." />
+                <views:SettingsView DataContext="{Binding Settings}" />
             </TabItem>
         </TabControl>
     </DockPanel>
