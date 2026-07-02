@@ -39,8 +39,7 @@
                            Text="Staging to server import. Arrives in phase 4." />
             </TabItem>
             <TabItem Header="New Structure">
-                <TextBlock Margin="16" TextWrapping="Wrap"
-                           Text="Create movie / show folders locally or on the server. Arrives in phase 2." />
+                <views:NewStructureView DataContext="{Binding NewStructure}" />
             </TabItem>
             <TabItem Header="Rename / Normalize">
                 <TextBlock Margin="16" TextWrapping="Wrap"

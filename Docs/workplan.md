@@ -6,7 +6,21 @@ boundary: check off done items, refresh **Current state**, and append to the **D
 
 ## Current state
 
-- **Phase**: P1 code-complete (pending the user's live SSH/Plex connection test); P2 is next.
+- **Phase**: P2 code-complete (New Structure); P3 (Rename / Normalize) is next.
+  P1's live SSH/Plex connection test is still pending the user's server setup.
+
+### P2 - New Structure  [CODE-COMPLETE]
+- Core naming toolkit (all pure, tested): `Naming/NameSanitizer` (safe segments, injection-proof),
+  `Naming/EpisodeParser` (s01e01 / 1x01 / normalized), `Naming/PlexNamer` (movie/show/season/episode
+  + subtitle names, scheme-aware), `Planning/FolderStructurePlanner`. `NamingScheme` moved to Core;
+  `MediaKind` added to Core.
+- Tests: 96 Core tests total (adds NameSanitizer, EpisodeParser, PlexNamer, FolderStructurePlanner
+  suites + an `InMemoryMediaFileSystem` fake in TestSupport).
+- App: `NewStructureViewModel` + `NewStructureView` wired into the New Structure tab. Location
+  (Server via SSH / Local), Movie(Name+Year) or Show(Name+Seasons), Preview (shows exists vs will-
+  create), Create (makes only the missing folders). Preview-before-apply; nothing writes until Create.
+
+### Older state
 - **Build status**: `dotnet build` clean (0 warnings), `dotnet run` launches with a working
   Settings tab. No Core tests yet (first ones land in P2 with the naming logic).
 - **What runs today**: the tabbed window with a **functional, annotated Settings tab** - SSH

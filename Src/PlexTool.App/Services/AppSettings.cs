@@ -1,3 +1,5 @@
+using PlexTool.Core.Naming;
+
 namespace PlexTool.App.Services;
 
 /// <summary>How PlexTool authenticates the SSH connection to the media server.</summary>
@@ -8,16 +10,6 @@ public enum SshAuthMethod
 
     /// <summary>Username + password. The password is a secret (DPAPI-encrypted, never in settings.json).</summary>
     Password,
-}
-
-/// <summary>How episode/movie files are named when created or normalized.</summary>
-public enum NamingScheme
-{
-    /// <summary>Plex recommended: "Show Name - S01E01" / "Movie Name (Year)". Uppercase, dash-separated.</summary>
-    PlexRecommended,
-
-    /// <summary>The legacy PowerShell-script form: "Show Name s01e01" / "Movie Name (Year)". Lowercase, space.</summary>
-    ScriptLegacy,
 }
 
 /// <summary>

@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlexTool.App.ViewModels"
+             x:Class="PlexTool.App.Views.NewStructureView"
+             x:DataType="vm:NewStructureViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+        <Style Selector="TextBlock.status">
+            <Setter Property="Foreground" Value="#8A8A8A" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="Grid.row">
+            <Setter Property="Margin" Value="0,4,0,4" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel Margin="20">
+        <TextBlock DockPanel.Dock="Top" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4"
+                   Text="Create folder structure" />
+        <TextBlock DockPanel.Dock="Top" Classes="status" Margin="0,0,0,10"
+                   Text="Create the standardized folders for a movie (Name (Year)) or a show (Show / Season NN). Nothing is written until you click Create." />
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="130,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+            <TextBlock Classes="label" Grid.Row="0" Grid.Column="0" Text="Location" />
+            <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" MinWidth="200" Margin="0,4"
+                      ItemsSource="{Binding Targets}" SelectedItem="{Binding Target}"
+                      ToolTip.Tip="Server = the storage box over SSH/SFTP, using the Movies/Shows roots from Settings. Local = a folder on this Windows machine." />
+
+            <TextBlock Classes="label" Grid.Row="1" Grid.Column="0" Text="Type" />
+            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="200" Margin="0,4"
+                      ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}"
+                      ToolTip.Tip="Movie creates one 'Name (Year)' folder. Show creates a show folder plus a Season NN folder for each season." />
+
+            <TextBlock Classes="label" Grid.Row="2" Grid.Column="0" Text="Name" />
+            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,4"
+                     PlaceholderText="e.g. Avatar or Dexter" Text="{Binding Name}"
+                     ToolTip.Tip="The movie or show title. Illegal characters are replaced automatically." />
+
+            <TextBlock Classes="label" Grid.Row="3" Grid.Column="0" Text="Year"
+                       IsVisible="{Binding IsMovie}" />
+            <NumericUpDown Grid.Row="3" Grid.Column="1" HorizontalAlignment="Left" Width="140" Margin="0,4"
+                           Minimum="1888" Maximum="2100" Increment="1" FormatString="0"
+                           Value="{Binding Year}" IsVisible="{Binding IsMovie}"
+                           ToolTip.Tip="Release year, used in the folder name: Name (Year)." />
+
+            <TextBlock Classes="label" Grid.Row="4" Grid.Column="0" Text="Seasons"
+                       IsVisible="{Binding IsShow}" />
+            <NumericUpDown Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" Width="140" Margin="0,4"
+                           Minimum="1" Maximum="99" Increment="1" FormatString="0"
+                           Value="{Binding Seasons}" IsVisible="{Binding IsShow}"
+                           ToolTip.Tip="How many season folders to create: Season 01 through Season NN." />
+
+            <TextBlock Classes="label" Grid.Row="5" Grid.Column="0" Text="Local root"
+                       IsVisible="{Binding IsLocal}" />
+            <Grid Grid.Row="5" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="0,4"
+                  IsVisible="{Binding IsLocal}">
+                <TextBox Grid.Column="0" PlaceholderText="folder to create under" Text="{Binding LocalRoot}"
+                         ToolTip.Tip="The local folder the structure is created under (only used when Location is Local)." />
+                <Button Grid.Column="1" Margin="8,0,0,0" Content="Browse..." Click="BrowseLocalRoot" />
+            </Grid>
+        </Grid>
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="130,10,0,0">
+            <Button Content="Preview" Command="{Binding PreviewCommand}" IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="Connect and show which folders exist and which would be created. No changes are made." />
+            <Button Content="Create" Command="{Binding CreateCommand}" IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="Create the folders that do not already exist." />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Top" Classes="status" Margin="130,0,0,0" Text="{Binding StatusText}" />
+
+        <!-- Preview list fills the rest -->
+        <Border Margin="0,12,0,0" BorderBrush="#33808080" BorderThickness="1" CornerRadius="4">
+            <ListBox ItemsSource="{Binding Preview}" Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FolderPreviewRow">
+                        <Grid ColumnDefinitions="90,*">
+                            <TextBlock Grid.Column="0" Text="{Binding Status}" FontWeight="SemiBold" Opacity="0.8" />
+                            <TextBlock Grid.Column="1" Text="{Binding Path}" FontFamily="Consolas, monospace"
+                                       TextWrapping="NoWrap" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+    </DockPanel>
+</UserControl>

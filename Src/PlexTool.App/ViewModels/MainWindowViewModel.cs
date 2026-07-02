@@ -16,6 +16,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         _host = host;
         Settings = new SettingsViewModel(host);
+        NewStructure = new NewStructureViewModel(host);
 
         _host.Updates.UpdateAvailableChanged += OnUpdateAvailableChanged;
         AvailableUpdateVersion = _host.Updates.AvailableVersion;
@@ -26,6 +27,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>Backs the Settings tab (SSH, Plex, paths, naming, cleanup defaults, secrets).</summary>
     public SettingsViewModel Settings { get; }
+
+    /// <summary>Backs the New Structure tab (create movie/show folders locally or on the server).</summary>
+    public NewStructureViewModel NewStructure { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUpdateBannerVisible))]

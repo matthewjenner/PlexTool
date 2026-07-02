@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PlexTool.App.Backends;
 using PlexTool.App.Services;
+using PlexTool.Core.Naming;
 
 namespace PlexTool.App.ViewModels;
 
