@@ -58,7 +58,14 @@ public sealed class SftpMediaFileSystem(SftpClient client, string description, b
         }
     }
 
-    public void Move(string source, string destination) => client.RenameFile(source, destination);
+    public void Move(string source, string destination)
+    {
+        // Never silently overwrite - refuse if the destination exists, matching the local backend's
+        // non-overwriting File.Move / Directory.Move. Collision handling is the caller's job.
+        if (client.Exists(destination))
+            throw new IOException($"Destination already exists: {destination}");
+        client.RenameFile(source, destination);
+    }
 
     public void Delete(string path)
     {

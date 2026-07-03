@@ -85,25 +85,38 @@ public sealed partial class NewStructureViewModel : ViewModelBase
             MediaKind kind = Kind;
 
             IMediaFileSystem fs = await CreateFileSystemAsync();
-            (IReadOnlyList<FolderPlanItem> items, int created) = await Task.Run(() =>
+            (List<FolderPreviewRow> rows, int created, int alreadyExisted, int total) = await Task.Run(() =>
             {
                 try
                 {
+                    // Plan once. Each folder's status and the counts come from this single snapshot,
+                    // so a just-created folder is counted as "created", never double-counted as
+                    // "existing". Existing folders are skipped, never touched (no clobber).
                     IReadOnlyList<FolderPlanItem> plan = BuildPlan(fs, root, namer, kind, name, year, seasons);
+                    var built = new List<FolderPreviewRow>(plan.Count);
                     int createdCount = 0;
-                    if (execute)
+
+                    foreach (FolderPlanItem item in plan)
                     {
-                        foreach (FolderPlanItem item in plan)
+                        string status;
+                        if (item.AlreadyExists)
                         {
-                            if (!item.AlreadyExists)
-                            {
-                                fs.CreateDirectory(item.Path);
-                                createdCount++;
-                            }
+                            status = "exists";
                         }
-                        plan = BuildPlan(fs, root, namer, kind, name, year, seasons); // refresh exists flags
+                        else if (execute)
+                        {
+                            fs.CreateDirectory(item.Path);
+                            createdCount++;
+                            status = "created";
+                        }
+                        else
+                        {
+                            status = "will create";
+                        }
+                        built.Add(new FolderPreviewRow(item.Path, status));
                     }
-                    return (plan, createdCount);
+
+                    return (built, createdCount, plan.Count(i => i.AlreadyExists), plan.Count);
                 }
                 finally
                 {
@@ -112,16 +125,12 @@ public sealed partial class NewStructureViewModel : ViewModelBase
             });
 
             Preview.Clear();
-            foreach (FolderPlanItem item in items)
-            {
-                string status = item.AlreadyExists ? "exists" : execute ? "created" : "will create";
-                Preview.Add(new FolderPreviewRow(item.Path, status));
-            }
+            foreach (FolderPreviewRow row in rows)
+                Preview.Add(row);
 
-            int existing = items.Count(i => i.AlreadyExists);
             StatusText = execute
-                ? $"Created {created} folder(s); {existing} already existed."
-                : $"Preview: {items.Count - existing} to create, {existing} already exist.";
+                ? $"Created {created} folder(s); {alreadyExisted} already existed."
+                : $"Preview: {total - alreadyExisted} to create, {alreadyExisted} already exist.";
         }
         catch (Exception ex)
         {

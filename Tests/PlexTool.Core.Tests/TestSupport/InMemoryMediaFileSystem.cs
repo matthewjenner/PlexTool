@@ -69,6 +69,9 @@ public sealed class InMemoryMediaFileSystem : IMediaFileSystem
 
     public void Move(string source, string destination)
     {
+        if (FileExists(destination) || DirectoryExists(destination))
+            throw new IOException($"Destination already exists: {destination}");
+
         if (_files.Remove(source, out byte[]? bytes))
         {
             _mtimes.Remove(source, out DateTimeOffset t);

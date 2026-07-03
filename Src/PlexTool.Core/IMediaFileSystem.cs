@@ -35,8 +35,10 @@ public interface IMediaFileSystem
     void CreateDirectory(string path);
 
     /// <summary>
-    /// Renames/moves an entry in place. Implementations must not copy-then-delete: an in-place
-    /// move keeps the file identity intact so Plex preserves watched state and metadata.
+    /// Renames/moves an entry in place. Implementations must not copy-then-delete (an in-place
+    /// move keeps the file identity intact so Plex preserves watched state and metadata) and must
+    /// not overwrite an existing destination - throw if <paramref name="destination"/> exists, so
+    /// callers detect and skip collisions rather than clobbering.
     /// </summary>
     void Move(string source, string destination);
 
