@@ -6,9 +6,27 @@ boundary: check off done items, refresh **Current state**, and append to the **D
 
 ## Current state
 
-- **Phase**: P3 code-complete (Rename / Normalize); P4 (Import) is next.
+- **Phase**: P4 code-complete (Import); P5 (Cleanup) is next.
   Server-side write access was set up (matt joined the `plex` group + setgid on the roots), and
   New Structure Create is verified working on the real server.
+
+### P4 - Import  [CODE-COMPLETE]
+- Core: `Planning/ImportPlanner` - PlanMovie / PlanShow. Collects media under a staging item (folder
+  recursed, or a single loose file), computes the target library paths + renamed filenames (reusing
+  PlexNamer/EpisodeParser/SubtitleName), flags collisions and no-S/E, returns the dirs-to-create +
+  file moves + the Plex scan path. `PlexNamer.MovieFile` gained a language-suffix param. 119 Core tests.
+- App: `PlexClient.RefreshAsync` (path-scoped `?path=` scan, or full-section refresh). `ImportViewModel`
+  + `ImportView` in the Import tab: Load staging (lists the remote staging folder), pick an item, set
+  type/name/(year), Preview the moves, Import = create folders + server-side rename each file (instant,
+  same filesystem) + optionally remove the now-empty source + trigger the Plex scan (translated through
+  `ToPlexPath` for split setups). Server-only by nature; nothing writes until Import.
+- **Deferred (noted, not silently dropped):**
+  - **Watch-mode auto-import** - staging is remote so FileSystemWatcher can't see it; needs remote
+    polling + a scene-name -> title/year/S-E guesser. Its own phase.
+  - **Local -> remote upload import** - when a source is on Windows (not on the storage box), import
+    needs a real SFTP upload with progress, not a server-side rename. Add when needed.
+  - **remove-source** only deletes the top staging folder if directly empty; nested empties are left
+    for the Cleanup tab (P5).
 
 ### P3 - Rename / Normalize  [CODE-COMPLETE]
 - Core: `Naming/SubtitleName` (subtitle extensions + language/flag suffix peeling, curated code set

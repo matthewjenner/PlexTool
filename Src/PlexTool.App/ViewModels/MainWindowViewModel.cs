@@ -18,6 +18,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         Settings = new SettingsViewModel(host);
         NewStructure = new NewStructureViewModel(host);
         Rename = new RenameViewModel(host);
+        Import = new ImportViewModel(host);
 
         _host.Updates.UpdateAvailableChanged += OnUpdateAvailableChanged;
         AvailableUpdateVersion = _host.Updates.AvailableVersion;
@@ -34,6 +35,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>Backs the Rename / Normalize tab (in-place rename toward Plex form).</summary>
     public RenameViewModel Rename { get; }
+
+    /// <summary>Backs the Import tab (move a staged item into the library, then scan Plex).</summary>
+    public ImportViewModel Import { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUpdateBannerVisible))]

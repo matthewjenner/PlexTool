@@ -10,9 +10,16 @@ public sealed class PlexNamer(NamingScheme scheme)
     /// <summary>Movie folder name, e.g. "Avatar (2009)".</summary>
     public string MovieFolder(string name, int year) => $"{NameSanitizer.Sanitize(name)} ({year})";
 
-    /// <summary>Movie file name: the folder name plus the extension, e.g. "Avatar (2009).mkv".</summary>
-    public string MovieFile(string name, int year, string extension) =>
-        MovieFolder(name, year) + NormalizeExtension(extension);
+    /// <summary>
+    /// Movie file name: the folder name plus the extension, e.g. "Avatar (2009).mkv". A non-empty
+    /// <paramref name="languageSuffix"/> (e.g. "en") is inserted before the extension for subtitles,
+    /// e.g. "Avatar (2009).en.srt".
+    /// </summary>
+    public string MovieFile(string name, int year, string extension, string? languageSuffix = null)
+    {
+        string language = string.IsNullOrWhiteSpace(languageSuffix) ? "" : "." + languageSuffix.Trim();
+        return MovieFolder(name, year) + language + NormalizeExtension(extension);
+    }
 
     /// <summary>Show folder name, e.g. "Dexter".</summary>
     public string ShowFolder(string name) => NameSanitizer.Sanitize(name);

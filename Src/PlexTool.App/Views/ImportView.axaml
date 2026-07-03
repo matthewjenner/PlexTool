@@ -1,0 +1,93 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlexTool.App.ViewModels"
+             x:Class="PlexTool.App.Views.ImportView"
+             x:DataType="vm:ImportViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+        <Style Selector="TextBlock.status">
+            <Setter Property="Foreground" Value="#8A8A8A" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="Grid.row">
+            <Setter Property="Margin" Value="0,4,0,4" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel Margin="20">
+        <TextBlock DockPanel.Dock="Top" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4"
+                   Text="Import from staging" />
+        <TextBlock DockPanel.Dock="Top" Classes="status" Margin="0,0,0,10"
+                   Text="Move a staged item from the storage box's staging folder into the library, renamed to Plex form, then scan Plex. Same-filesystem moves are instant (no upload). Nothing changes until Import." />
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="130,*,Auto" RowDefinitions="Auto,Auto,Auto">
+            <TextBlock Classes="label" Grid.Row="0" Grid.Column="0" Text="Staging item" />
+            <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,4" HorizontalAlignment="Stretch"
+                      ItemsSource="{Binding StagingItems}" SelectedItem="{Binding SelectedItem}"
+                      ToolTip.Tip="A folder or file in your staging folder (from Settings). Click Load first.">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:StagingItem">
+                        <TextBlock Text="{Binding Display}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Grid.Row="0" Grid.Column="2" Margin="8,4,0,4" Content="Load"
+                    Command="{Binding LoadStagingCommand}" IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="List the staging folder on the storage box." />
+
+            <TextBlock Classes="label" Grid.Row="1" Grid.Column="0" Text="Type" />
+            <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,4" HorizontalAlignment="Left" MinWidth="200"
+                      ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}"
+                      ToolTip.Tip="Movie imports into the Movies library; Show folders episodes into the Shows library." />
+
+            <TextBlock Classes="label" Grid.Row="2" Grid.Column="0" Text="Name" />
+            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,4"
+                     PlaceholderText="clean title, e.g. Enemy or Dexter" Text="{Binding Name}"
+                     ToolTip.Tip="The clean movie/show title (prefilled from the item name - edit it)." />
+        </Grid>
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="130,*" RowDefinitions="Auto">
+            <TextBlock Classes="label" Grid.Column="0" Text="Year" IsVisible="{Binding IsMovie}" />
+            <NumericUpDown Grid.Column="1" HorizontalAlignment="Left" Width="140" Margin="0,4"
+                           Minimum="1888" Maximum="2100" Increment="1" FormatString="0"
+                           Value="{Binding Year}" IsVisible="{Binding IsMovie}"
+                           ToolTip.Tip="Release year for the movie folder." />
+        </Grid>
+
+        <StackPanel DockPanel.Dock="Top" Margin="130,4,0,0" Spacing="2">
+            <CheckBox Content="Remove source folder afterward if it is empty"
+                      IsChecked="{Binding RemoveSourceWhenEmpty}"
+                      ToolTip.Tip="After moving media out, delete the staging folder only if nothing is left in it. Non-media leftovers are never force-deleted." />
+            <CheckBox Content="Trigger a Plex scan after import"
+                      IsChecked="{Binding TriggerPlexScan}"
+                      ToolTip.Tip="Ask Plex to scan just the imported path (needs the Plex URL, token, and library mapping from Settings)." />
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="130,10,0,0">
+            <Button Content="Preview" Command="{Binding PreviewCommand}" IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="Show the moves without changing anything." />
+            <Button Content="Import" Command="{Binding ImportCommand}" IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="Create the target folders, move the media, optionally clean up, and scan Plex." />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Top" Classes="status" Margin="130,0,0,0" Text="{Binding StatusText}" />
+
+        <Border Margin="0,12,0,0" BorderBrush="#33808080" BorderThickness="1" CornerRadius="4">
+            <ListBox ItemsSource="{Binding Rows}" Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ImportRow">
+                        <Grid ColumnDefinitions="80,*">
+                            <TextBlock Grid.Column="0" Text="{Binding StatusText}" FontWeight="SemiBold" Opacity="0.8" />
+                            <TextBlock Grid.Column="1" Text="{Binding Change}" FontFamily="Consolas, monospace"
+                                       TextWrapping="NoWrap" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+    </DockPanel>
+</UserControl>

@@ -35,8 +35,7 @@
 
         <TabControl Margin="8">
             <TabItem Header="Import">
-                <TextBlock Margin="16" TextWrapping="Wrap"
-                           Text="Staging to server import. Arrives in phase 4." />
+                <views:ImportView DataContext="{Binding Import}" />
             </TabItem>
             <TabItem Header="New Structure">
                 <views:NewStructureView DataContext="{Binding NewStructure}" />

@@ -70,6 +70,45 @@ public sealed class PlexClient
         }
     }
 
+    /// <summary>
+    /// Triggers a library scan. If <paramref name="scanPath"/> is given, Plex scans just that path
+    /// (fast); otherwise it refreshes the whole section. <paramref name="scanPath"/> must be a path
+    /// as PLEX sees it (already translated through <c>AppSettings.ToPlexPath</c> for split setups).
+    /// </summary>
+    public async Task<PlexResult> RefreshAsync(
+        string baseUrl, string? token, string? sectionId, string? scanPath, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return new PlexResult(false, "No Plex base URL configured - skipped the library scan.", []);
+        if (string.IsNullOrWhiteSpace(sectionId))
+            return new PlexResult(false, "No Plex library mapped for this type - skipped the scan (set it in Settings).", []);
+
+        try
+        {
+            string url = $"{baseUrl.TrimEnd('/')}/library/sections/{sectionId}/refresh";
+            if (!string.IsNullOrWhiteSpace(scanPath))
+                url += "?path=" + Uri.EscapeDataString(scanPath);
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("Accept", "application/json");
+            if (!string.IsNullOrWhiteSpace(token))
+                request.Headers.Add("X-Plex-Token", token);
+
+            using HttpResponseMessage response = await Http.SendAsync(request, ct);
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                return new PlexResult(false, "Plex rejected the token - scan not triggered.", []);
+
+            response.EnsureSuccessStatusCode();
+            return new PlexResult(true,
+                scanPath is null ? "Plex library scan triggered." : $"Plex scan triggered for {scanPath}.", []);
+        }
+        catch (Exception ex)
+        {
+            return new PlexResult(false, "Could not trigger the Plex scan: " + ex.Message, []);
+        }
+    }
+
     // ---- JSON shapes (Plex returns MediaContainer.Directory[] when Accept: application/json) ----
 
     private sealed record SectionsResponse
