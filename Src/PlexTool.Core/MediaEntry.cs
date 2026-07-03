@@ -24,6 +24,12 @@ public sealed record MediaEntry(
     long Size,
     DateTimeOffset LastModifiedUtc)
 {
+    /// <summary>
+    /// True if this entry is a symbolic link (Linux) / reparse point (Windows). Cleanup never
+    /// descends into or deletes these, and their presence keeps a parent from counting as empty.
+    /// </summary>
+    public bool IsSymbolicLink { get; init; }
+
     public bool IsDirectory => Kind == MediaEntryKind.Directory;
     public bool IsFile => Kind == MediaEntryKind.File;
 }

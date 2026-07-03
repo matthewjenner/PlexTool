@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlexTool.App.ViewModels"
+             x:Class="PlexTool.App.Views.CleanupView"
+             x:DataType="vm:CleanupViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+        <Style Selector="TextBlock.status">
+            <Setter Property="Foreground" Value="#8A8A8A" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+        <Style Selector="Grid.row">
+            <Setter Property="Margin" Value="0,4,0,4" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel Margin="20">
+        <TextBlock DockPanel.Dock="Top" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4"
+                   Text="Cleanup empty folders" />
+        <TextBlock DockPanel.Dock="Top" Classes="status" Margin="0,0,0,10"
+                   Text="Sweep a folder for EMPTY directories only - never files. Deepest-first, with a min-age gate, name exclusions, and symlinks skipped. Preview lists what would go; nothing is removed until Delete." />
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="130,*,Auto" RowDefinitions="Auto,Auto,Auto">
+            <TextBlock Classes="label" Grid.Row="0" Grid.Column="0" Text="Location" />
+            <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" MinWidth="200" Margin="0,4"
+                      ItemsSource="{Binding Targets}" SelectedItem="{Binding Target}"
+                      ToolTip.Tip="Server = a folder on the storage box over SSH. Local = a folder on this machine." />
+
+            <TextBlock Classes="label" Grid.Row="1" Grid.Column="0" Text="Folder"
+                       IsVisible="{Binding !IsLocal}" />
+            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="200" Margin="0,4"
+                      ItemsSource="{Binding ServerFolders}" SelectedItem="{Binding ServerFolder}"
+                      IsVisible="{Binding !IsLocal}"
+                      ToolTip.Tip="Which server folder to sweep. Movies/Shows/Staging use the paths from Settings; Custom lets you type any path." />
+
+            <TextBlock Classes="label" Grid.Row="2" Grid.Column="0" Text="Custom path"
+                       IsVisible="{Binding ShowCustomPath}" />
+            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,4" PlaceholderText="/srv/plex-media/..."
+                     Text="{Binding CustomPath}" IsVisible="{Binding ShowCustomPath}" />
+
+            <TextBlock Classes="label" Grid.Row="2" Grid.Column="0" Text="Local folder"
+                       IsVisible="{Binding IsLocal}" />
+            <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="0,4"
+                  IsVisible="{Binding IsLocal}">
+                <TextBox Grid.Column="0" PlaceholderText="folder to sweep" Text="{Binding LocalRoot}" />
+                <Button Grid.Column="1" Margin="8,0,0,0" Content="Browse..." Click="BrowseLocalRoot" />
+            </Grid>
+        </Grid>
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="130,Auto,Auto" RowDefinitions="Auto" Margin="0,4,0,0">
+            <TextBlock Classes="label" Grid.Column="0" Text="Min age (min)" />
+            <NumericUpDown Grid.Column="1" Width="130" Minimum="0" Maximum="1440" Increment="1"
+                           FormatString="0" Value="{Binding MinAgeMinutes}"
+                           ToolTip.Tip="An empty folder must have been untouched for at least this long to be removed - protects folders that are mid-write." />
+            <CheckBox Grid.Column="2" Margin="16,0,0,0" VerticalAlignment="Center"
+                      Content="Prune empty parents" IsChecked="{Binding PruneParents}"
+                      ToolTip.Tip="After removing an empty folder, also remove parents that become empty, up to (not including) the root." />
+        </Grid>
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="130,*" RowDefinitions="Auto" Margin="0,4,0,0">
+            <TextBlock Classes="label" Grid.Column="0" VerticalAlignment="Top" Margin="0,4,12,0" Text="Exclusions" />
+            <TextBox Grid.Column="1" AcceptsReturn="True" Height="70"
+                     PlaceholderText="one folder name per line (wildcards ok: @eaDir, .st*)"
+                     Text="{Binding ExclusionsText}"
+                     ToolTip.Tip="Folder names never touched (case-insensitive, * and ? wildcards). An excluded folder also keeps its parent from being pruned." />
+        </Grid>
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="130,10,0,0">
+            <Button Content="Preview" Command="{Binding PreviewCommand}" IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="List the empty folders that would be removed. No changes are made." />
+            <Button Content="Delete" Command="{Binding DeleteCommand}" IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="Remove the listed empty folders, deepest-first." />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Top" Classes="status" Margin="130,0,0,0" Text="{Binding StatusText}" />
+
+        <Border Margin="0,12,0,0" BorderBrush="#33808080" BorderThickness="1" CornerRadius="4">
+            <ListBox ItemsSource="{Binding Rows}" Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:CleanupRow">
+                        <Grid ColumnDefinitions="160,*">
+                            <TextBlock Grid.Column="0" Text="{Binding Status}" FontWeight="SemiBold" Opacity="0.8" />
+                            <TextBlock Grid.Column="1" Text="{Binding Path}" FontFamily="Consolas, monospace"
+                                       TextWrapping="NoWrap" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+    </DockPanel>
+</UserControl>

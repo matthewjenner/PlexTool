@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlexTool.App.ViewModels"
+             x:Class="PlexTool.App.Views.ToolsView"
+             x:DataType="vm:ToolsViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,14,0,6" />
+        </Style>
+        <Style Selector="TextBlock.status">
+            <Setter Property="Foreground" Value="#8A8A8A" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="MinWidth" Value="150" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer Padding="20">
+        <StackPanel MaxWidth="640" HorizontalAlignment="Left" Spacing="4">
+            <TextBlock FontSize="18" FontWeight="SemiBold" Text="Tools" />
+            <TextBlock Classes="status" Text="Quick one-off actions. The scans also have keyboard shortcuts (shown below)." />
+
+            <TextBlock Classes="section" Text="Plex scans" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Scan Movies  (Ctrl+M)" Command="{Binding ScanMoviesCommand}" IsEnabled="{Binding !IsBusy}"
+                        ToolTip.Tip="Ask Plex to refresh the whole Movies library." />
+                <Button Content="Scan Shows  (Ctrl+T)" Command="{Binding ScanShowsCommand}" IsEnabled="{Binding !IsBusy}"
+                        ToolTip.Tip="Ask Plex to refresh the whole TV Shows library." />
+            </StackPanel>
+
+            <TextBlock Classes="section" Text="Connections" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Test SSH" Command="{Binding TestSshCommand}" IsEnabled="{Binding !IsBusy}"
+                        ToolTip.Tip="Connect to the storage box and report the result." />
+                <Button Content="Test Plex" Command="{Binding TestPlexCommand}" IsEnabled="{Binding !IsBusy}"
+                        ToolTip.Tip="Contact Plex and report how many libraries it sees." />
+            </StackPanel>
+
+            <TextBlock Classes="section" Text="Config" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Open config folder" Command="{Binding OpenConfigFolderCommand}"
+                        ToolTip.Tip="Open %APPDATA%\PlexTool (settings.json + the encrypted secrets.dat) in Explorer." />
+            </StackPanel>
+
+            <Border Height="10" />
+            <TextBlock Classes="status" Text="{Binding Result}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

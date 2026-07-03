@@ -16,9 +16,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         _host = host;
         Settings = new SettingsViewModel(host);
-        NewStructure = new NewStructureViewModel(host);
         Rename = new RenameViewModel(host);
         Import = new ImportViewModel(host);
+        Cleanup = new CleanupViewModel(host);
+        Tools = new ToolsViewModel(host);
 
         _host.Updates.UpdateAvailableChanged += OnUpdateAvailableChanged;
         AvailableUpdateVersion = _host.Updates.AvailableVersion;
@@ -30,14 +31,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// <summary>Backs the Settings tab (SSH, Plex, paths, naming, cleanup defaults, secrets).</summary>
     public SettingsViewModel Settings { get; }
 
-    /// <summary>Backs the New Structure tab (create movie/show folders locally or on the server).</summary>
-    public NewStructureViewModel NewStructure { get; }
-
     /// <summary>Backs the Rename / Normalize tab (in-place rename toward Plex form).</summary>
     public RenameViewModel Rename { get; }
 
     /// <summary>Backs the Import tab (move a staged item into the library, then scan Plex).</summary>
     public ImportViewModel Import { get; }
+
+    /// <summary>Backs the Cleanup tab (sweep empty folders, local or remote).</summary>
+    public CleanupViewModel Cleanup { get; }
+
+    /// <summary>Backs the Tools tab and the window keybindings (manual scans, connection tests, ...).</summary>
+    public ToolsViewModel Tools { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUpdateBannerVisible))]

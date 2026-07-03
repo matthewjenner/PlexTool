@@ -32,9 +32,9 @@ public class SettingsLayoutTests(ITestOutputHelper output)
         };
         window.Show();
 
-        // Select the Settings tab so its content is realized.
+        // Select the Settings tab so its content is realized (by header, not a brittle index).
         TabControl tabs = window.GetVisualDescendants().OfType<TabControl>().First();
-        tabs.SelectedIndex = 4;
+        tabs.SelectedItem = tabs.Items.OfType<TabItem>().First(t => (t.Header as string) == "Settings");
         Dispatcher.UIThread.RunJobs();
 
         ScrollViewer scroll = window.GetVisualDescendants().OfType<ScrollViewer>()

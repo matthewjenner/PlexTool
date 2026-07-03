@@ -39,7 +39,10 @@ public sealed class SftpMediaFileSystem(SftpClient client, string description, b
             long size = f.IsRegularFile ? f.Length : 0;
             entries.Add(new MediaEntry(
                 f.Name, f.FullName, kind, size,
-                new DateTimeOffset(f.LastWriteTimeUtc, TimeSpan.Zero)));
+                new DateTimeOffset(f.LastWriteTimeUtc, TimeSpan.Zero))
+            {
+                IsSymbolicLink = f.IsSymbolicLink,
+            });
         }
         return entries;
     }

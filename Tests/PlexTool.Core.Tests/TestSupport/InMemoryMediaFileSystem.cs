@@ -9,6 +9,7 @@ namespace PlexTool.Core.Tests.TestSupport;
 public sealed class InMemoryMediaFileSystem : IMediaFileSystem
 {
     private readonly HashSet<string> _directories = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _symlinks = new(StringComparer.Ordinal);
     private readonly Dictionary<string, byte[]> _files = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> _mtimes = new(StringComparer.Ordinal);
 
@@ -18,10 +19,22 @@ public sealed class InMemoryMediaFileSystem : IMediaFileSystem
     public string Combine(string basePath, string child) =>
         basePath.TrimEnd('/') + "/" + child.TrimStart('/');
 
-    /// <summary>Test helper: create a directory (and its parents) directly.</summary>
-    public InMemoryMediaFileSystem AddDirectory(string path)
+    /// <summary>Test helper: create a directory (and its parents) directly, with an optional mtime.</summary>
+    public InMemoryMediaFileSystem AddDirectory(string path, DateTimeOffset? modified = null)
     {
         CreateDirectory(path);
+        if (modified is not null)
+            _mtimes[Norm(path)] = modified.Value;
+        return this;
+    }
+
+    /// <summary>Test helper: add a symlinked directory (cleanup should skip it).</summary>
+    public InMemoryMediaFileSystem AddSymlinkDir(string path, DateTimeOffset? modified = null)
+    {
+        CreateDirectory(path);
+        _symlinks.Add(Norm(path));
+        if (modified is not null)
+            _mtimes[Norm(path)] = modified.Value;
         return this;
     }
 
@@ -47,7 +60,10 @@ public sealed class InMemoryMediaFileSystem : IMediaFileSystem
 
         foreach (string dir in _directories)
             if (dir.StartsWith(prefix, StringComparison.Ordinal) && !dir[prefix.Length..].Contains('/'))
-                entries.Add(new MediaEntry(Leaf(dir), dir, MediaEntryKind.Directory, 0, MTime(dir)));
+                entries.Add(new MediaEntry(Leaf(dir), dir, MediaEntryKind.Directory, 0, MTime(dir))
+                {
+                    IsSymbolicLink = _symlinks.Contains(dir),
+                });
 
         foreach ((string file, byte[] bytes) in _files)
             if (file.StartsWith(prefix, StringComparison.Ordinal) && !file[prefix.Length..].Contains('/'))

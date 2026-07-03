@@ -6,9 +6,30 @@ boundary: check off done items, refresh **Current state**, and append to the **D
 
 ## Current state
 
-- **Phase**: P4 code-complete (Import); P5 (Cleanup) is next.
-  Server-side write access was set up (matt joined the `plex` group + setgid on the roots), and
-  New Structure Create is verified working on the real server.
+- **Phase**: P5 code-complete (Cleanup) - all five operations built. P6 (polish + live end-to-end
+  verify) is next. Server-side write access is set up and New Structure/import writes are confirmed
+  working on the real server.
+
+### P5 - Cleanup  [CODE-COMPLETE]
+- Core: `Cleanup/EmptyFolderScanner.FindRemovable` - pure, single-snapshot, returns empty dirs
+  deepest-first. Rules: never the root; skip symlinks (and a symlink keeps its parent non-empty);
+  wildcard name exclusions (case-insensitive, PowerShell -like style); min-age gate; optional
+  prune-empty-parents cascade. `MediaEntry` gained `IsSymbolicLink` (set by Local via ReparsePoint,
+  by SFTP via ISftpFile.IsSymbolicLink; in-memory fake gained AddSymlinkDir + dir mtimes). 123 Core tests.
+- App: `CleanupViewModel` + `CleanupView` in the Cleanup tab. Location (Server/Local); server folder
+  = Movies/Shows/Staging/Custom; min-age, prune-parents, exclusions default from Settings but editable
+  per run; Preview lists what would go, Delete removes deepest-first. Removes EMPTY folders only,
+  never files. Nothing removed until Delete.
+- **Deferred:** continuous "monitor/watch" cleanup mode (the PS -Mode Monitor) - one-shot only for now.
+
+### New Structure MERGED into Import (tab removed)
+- Import already builds the folder tree as part of importing (ImportPlanner returns the dirs to
+  create), so the standalone New Structure tab was redundant with the user's real workflow (they ran
+  the two old scripts in sequence). Per the user's call, standalone folder creation was **dropped
+  entirely** - Import now requires a staging item and does structure + rename + move + scan in one.
+- Removed: NewStructureView(+VM), the tab, `Core/Planning/FolderStructurePlanner` (+tests). The
+  Server/Local enum moved from the deleted VM to `ViewModels/OperationTarget.cs` (Rename still uses it).
+- Tab order is now: Import | Rename / Normalize | Cleanup | Settings. Core tests 119 -> 113.
 
 ### P4 - Import  [CODE-COMPLETE]
 - Core: `Planning/ImportPlanner` - PlanMovie / PlanShow. Collects media under a staging item (folder
@@ -118,6 +139,12 @@ boundary: check off done items, refresh **Current state**, and append to the **D
 ### P5 - Cleanup
 - [ ] EmptyFolderScanner in Core (deepest-first, min-age, exclusions, symlink skip) + tests
 - [ ] CleanupRunner + prune-empty-parents; Cleanup tab; once + watch modes
+
+### Tools tab (utility surface) [DONE]
+- `ViewModels/ToolsViewModel.cs` is the home for quick one-off actions: Scan Movies (Ctrl+M), Scan
+  Shows (Ctrl+T), Test SSH, Test Plex, Open config folder. Surfaced as the Tools tab AND window
+  `KeyBindings` in MainWindow.axaml. Adding a utility = one `[RelayCommand]` here + a button in
+  ToolsView + (optional) a KeyBinding. Tab order: Import | Rename | Cleanup | Tools | Settings.
 
 ### P6 - Polish
 - [x] App icon (Assets\icon.ico, multi-res 16-256) + <ApplicationIcon> + Window Icon (done early)

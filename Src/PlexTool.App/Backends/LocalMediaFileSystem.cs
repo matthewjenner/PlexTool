@@ -27,7 +27,10 @@ public sealed class LocalMediaFileSystem : IMediaFileSystem
             var info = new DirectoryInfo(dir);
             entries.Add(new MediaEntry(
                 info.Name, info.FullName, MediaEntryKind.Directory, 0,
-                new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero)));
+                new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero))
+            {
+                IsSymbolicLink = info.Attributes.HasFlag(FileAttributes.ReparsePoint),
+            });
         }
 
         foreach (string file in Directory.EnumerateFiles(path))
@@ -35,7 +38,10 @@ public sealed class LocalMediaFileSystem : IMediaFileSystem
             var info = new FileInfo(file);
             entries.Add(new MediaEntry(
                 info.Name, info.FullName, MediaEntryKind.File, info.Length,
-                new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero)));
+                new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero))
+            {
+                IsSymbolicLink = info.Attributes.HasFlag(FileAttributes.ReparsePoint),
+            });
         }
 
         return entries;

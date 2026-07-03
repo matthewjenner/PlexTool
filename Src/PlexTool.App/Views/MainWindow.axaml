@@ -10,6 +10,12 @@
         MinWidth="720" MinHeight="480"
         WindowStartupLocation="CenterScreen">
 
+    <!-- App-wide keyboard shortcuts (work while the window is focused). Add more here as Tools grow. -->
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+M" Command="{Binding Tools.ScanMoviesCommand}" />
+        <KeyBinding Gesture="Ctrl+T" Command="{Binding Tools.ScanShowsCommand}" />
+    </Window.KeyBindings>
+
     <DockPanel>
         <!-- Update banner: docked at the very top, shown only when a newer release exists. -->
         <Border DockPanel.Dock="Top"
@@ -37,15 +43,14 @@
             <TabItem Header="Import">
                 <views:ImportView DataContext="{Binding Import}" />
             </TabItem>
-            <TabItem Header="New Structure">
-                <views:NewStructureView DataContext="{Binding NewStructure}" />
-            </TabItem>
             <TabItem Header="Rename / Normalize">
                 <views:RenameView DataContext="{Binding Rename}" />
             </TabItem>
             <TabItem Header="Cleanup">
-                <TextBlock Margin="16" TextWrapping="Wrap"
-                           Text="Empty-folder sweep, local or remote, once or watch. Arrives in phase 5." />
+                <views:CleanupView DataContext="{Binding Cleanup}" />
+            </TabItem>
+            <TabItem Header="Tools">
+                <views:ToolsView DataContext="{Binding Tools}" />
             </TabItem>
             <TabItem Header="Settings">
                 <views:SettingsView DataContext="{Binding Settings}" />

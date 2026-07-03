@@ -60,16 +60,16 @@ public sealed partial class RenameViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLocal))]
-    private StructureTarget _target = StructureTarget.Server;
+    private OperationTarget _target = OperationTarget.Server;
 
     [ObservableProperty] private MediaKind _kind = MediaKind.Movie;
     [ObservableProperty] private string _localRoot = "";
     [ObservableProperty] private string _statusText = "";
     [ObservableProperty] private bool _isBusy;
 
-    public bool IsLocal => Target == StructureTarget.Local;
+    public bool IsLocal => Target == OperationTarget.Local;
 
-    public IReadOnlyList<StructureTarget> Targets { get; } = Enum.GetValues<StructureTarget>();
+    public IReadOnlyList<OperationTarget> Targets { get; } = Enum.GetValues<OperationTarget>();
     public IReadOnlyList<MediaKind> Kinds { get; } = Enum.GetValues<MediaKind>();
 
     public ObservableCollection<RenameRowViewModel> Rows { get; } = [];
@@ -209,14 +209,14 @@ public sealed partial class RenameViewModel : ViewModelBase
 
     private async Task<IMediaFileSystem> CreateFileSystemAsync()
     {
-        if (Target == StructureTarget.Local)
+        if (Target == OperationTarget.Local)
             return new LocalMediaFileSystem();
         return await _host.Ssh.ConnectAsync(_host.Settings, _host.Secrets);
     }
 
     private string ResolveRoot()
     {
-        if (Target == StructureTarget.Local)
+        if (Target == OperationTarget.Local)
         {
             if (string.IsNullOrWhiteSpace(LocalRoot))
                 throw new InvalidOperationException("Pick a local root folder first.");

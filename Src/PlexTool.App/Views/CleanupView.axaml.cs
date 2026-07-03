@@ -5,13 +5,13 @@ using PlexTool.App.ViewModels;
 
 namespace PlexTool.App.Views;
 
-public partial class NewStructureView : UserControl
+public partial class CleanupView : UserControl
 {
-    public NewStructureView() => InitializeComponent();
+    public CleanupView() => InitializeComponent();
 
     private async void BrowseLocalRoot(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not NewStructureViewModel vm)
+        if (DataContext is not CleanupViewModel vm)
             return;
         TopLevel? top = TopLevel.GetTopLevel(this);
         if (top is null)
@@ -19,7 +19,7 @@ public partial class NewStructureView : UserControl
 
         IReadOnlyList<IStorageFolder> folders = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Select the local root folder",
+            Title = "Select a folder to sweep for empty directories",
             AllowMultiple = false,
         });
 
