@@ -6,8 +6,22 @@ boundary: check off done items, refresh **Current state**, and append to the **D
 
 ## Current state
 
-- **Phase**: P2 code-complete (New Structure); P3 (Rename / Normalize) is next.
-  P1's live SSH/Plex connection test is still pending the user's server setup.
+- **Phase**: P3 code-complete (Rename / Normalize); P4 (Import) is next.
+  Server-side write access was set up (matt joined the `plex` group + setgid on the roots), and
+  New Structure Create is verified working on the real server.
+
+### P3 - Rename / Normalize  [CODE-COMPLETE]
+- Core: `Naming/SubtitleName` (subtitle extensions + language/flag suffix peeling, curated code set
+  so "Two"/"The" are not mistaken for languages), `Planning/RenamePlanner` (movies -> folder-name.ext,
+  shows -> Show - S01E01.ext via PlexNamer/EpisodeParser). Statuses: WillRename / AlreadyCorrect /
+  Collision (never overwrites) / NoEpisodePattern. Pure + tested (112 Core tests total).
+- App: `RenameViewModel` + `RenameRowViewModel` + `RenameView` in the Rename / Normalize tab.
+  Location (Server/Local), Library (Movies/Shows), Preview lists every proposed change with per-row
+  checkboxes (only actionable rows selectable), Select all/none, Apply renames the checked ones
+  in place and re-scans. Nothing writes until Apply.
+- Clobber safety hardened at the primitive level in P2 follow-up: `IMediaFileSystem.Move` now throws
+  on an existing destination (SFTP, local, and in-memory fake), so renames/moves can never silently
+  overwrite; the planner surfaces collisions and skips them.
 
 ### P2 - New Structure  [CODE-COMPLETE]
 - Core naming toolkit (all pure, tested): `Naming/NameSanitizer` (safe segments, injection-proof),

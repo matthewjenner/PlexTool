@@ -42,8 +42,7 @@
                 <views:NewStructureView DataContext="{Binding NewStructure}" />
             </TabItem>
             <TabItem Header="Rename / Normalize">
-                <TextBlock Margin="16" TextWrapping="Wrap"
-                           Text="Rename to Plex form with dry-run preview, in place. Arrives in phase 3." />
+                <views:RenameView DataContext="{Binding Rename}" />
             </TabItem>
             <TabItem Header="Cleanup">
                 <TextBlock Margin="16" TextWrapping="Wrap"

@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:PlexTool.App.ViewModels"
+             x:Class="PlexTool.App.Views.RenameView"
+             x:DataType="vm:RenameViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+        <Style Selector="TextBlock.status">
+            <Setter Property="Foreground" Value="#8A8A8A" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel Margin="20">
+        <TextBlock DockPanel.Dock="Top" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4"
+                   Text="Rename / Normalize" />
+        <TextBlock DockPanel.Dock="Top" Classes="status" Margin="0,0,0,10"
+                   Text="Scan a library and rename media in place toward Plex form. Movies become 'Folder Name.ext'; episodes become 'Show - S01E01.ext'. In-place renames keep Plex watched state. Nothing changes until you click Apply." />
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="130,*" RowDefinitions="Auto,Auto,Auto">
+            <TextBlock Classes="label" Grid.Row="0" Grid.Column="0" Text="Location" />
+            <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" MinWidth="200" Margin="0,4"
+                      ItemsSource="{Binding Targets}" SelectedItem="{Binding Target}"
+                      ToolTip.Tip="Server = the storage box over SSH, using the Movies/Shows roots from Settings. Local = a folder on this machine." />
+
+            <TextBlock Classes="label" Grid.Row="1" Grid.Column="0" Text="Library" />
+            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" MinWidth="200" Margin="0,4"
+                      ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}"
+                      ToolTip.Tip="Movie = the Movies library (rename to the folder name). Show = the Shows library (rename to Show - S01E01)." />
+
+            <TextBlock Classes="label" Grid.Row="2" Grid.Column="0" Text="Local root"
+                       IsVisible="{Binding IsLocal}" />
+            <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="0,4"
+                  IsVisible="{Binding IsLocal}">
+                <TextBox Grid.Column="0" PlaceholderText="library root to scan" Text="{Binding LocalRoot}" />
+                <Button Grid.Column="1" Margin="8,0,0,0" Content="Browse..." Click="BrowseLocalRoot" />
+            </Grid>
+        </Grid>
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="130,10,0,0">
+            <Button Content="Preview" Command="{Binding PreviewCommand}" IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="Scan and list every proposed rename. No changes are made." />
+            <Button Content="Apply selected" Command="{Binding ApplyCommand}" IsEnabled="{Binding !IsBusy}"
+                    ToolTip.Tip="Rename the checked files in place." />
+            <Button Content="Select all" Command="{Binding SelectAllCommand}" />
+            <Button Content="Select none" Command="{Binding SelectNoneCommand}" />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Top" Classes="status" Margin="130,0,0,0" Text="{Binding StatusText}" />
+
+        <Border Margin="0,12,0,0" BorderBrush="#33808080" BorderThickness="1" CornerRadius="4">
+            <ListBox ItemsSource="{Binding Rows}" Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RenameRowViewModel">
+                        <Grid ColumnDefinitions="Auto,80,*">
+                            <CheckBox Grid.Column="0" Margin="0,0,8,0"
+                                      IsChecked="{Binding IsSelected}"
+                                      IsEnabled="{Binding Actionable}" />
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                                       Text="{Binding StatusText}" FontWeight="SemiBold" Opacity="0.8" />
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                                       Text="{Binding Change}" FontFamily="Consolas, monospace"
+                                       TextWrapping="NoWrap" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+    </DockPanel>
+</UserControl>

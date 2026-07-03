@@ -17,6 +17,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         _host = host;
         Settings = new SettingsViewModel(host);
         NewStructure = new NewStructureViewModel(host);
+        Rename = new RenameViewModel(host);
 
         _host.Updates.UpdateAvailableChanged += OnUpdateAvailableChanged;
         AvailableUpdateVersion = _host.Updates.AvailableVersion;
@@ -30,6 +31,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>Backs the New Structure tab (create movie/show folders locally or on the server).</summary>
     public NewStructureViewModel NewStructure { get; }
+
+    /// <summary>Backs the Rename / Normalize tab (in-place rename toward Plex form).</summary>
+    public RenameViewModel Rename { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUpdateBannerVisible))]
