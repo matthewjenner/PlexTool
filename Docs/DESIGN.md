@@ -36,31 +36,33 @@ UAC prompt.
 ## The tabs
 
 ### Import (the main flow)
-Point at a staged item, classify it (Movie with year, or Show with season/episode - auto-parsed
-from the existing name where possible), and PlexTool: creates the correct remote folder, uploads
-with a real progress bar, verifies the size, deletes the local source (move), optionally fixes
-ownership/permissions, then asks Plex to scan just that path. A **watch mode** watches the staging
-folder and imports new arrivals automatically once they stop changing.
-
-### New Structure
-Create `Movie (Year)` or `Show/Season NN` scaffolding, on the server or locally, without moving
-any files. Useful for pre-creating a show's seasons.
+Load the staging folder, pick a staged item, classify it (Movie with year, or Show - episodes
+auto-parsed from filenames), and PlexTool builds the correct target folders, renames each file to
+Plex form, moves them into the library as an **instant server-side rename** (staging and library
+share the filesystem, so no upload), optionally removes the emptied source folder, then asks Plex
+to scan just that path. Preview shows every move first. **Import also does what the old "New
+Structure" step did** - it creates the folder tree as part of importing, which is why standalone
+folder creation is not a separate tab.
 
 ### Rename / Normalize
 Rename media in a chosen root to the Plex form. Two uses: tidy a freshly added item, or bulk
-**normalize an existing library** to the recommended naming. Always a dry-run preview first;
-applies as in-place renames.
+**normalize an existing library** to the recommended naming. Always a preview first, with a
+per-file checkbox to choose what to apply; applies as in-place renames. Server or local.
 
 ### Cleanup
-Sweep empty folders (local staging or a server library root) deepest-first, with the script's
-safety knobs: min-age, name exclusions, symlink skip, optional prune-empty-parents. Once or a
-continuous watch.
+Sweep empty folders (a server library root, staging, a custom path, or a local folder) deepest-first,
+with the script's safety knobs: min-age, wildcard name exclusions, symlink skip, optional
+prune-empty-parents. Empty folders only, never files. Preview first.
+
+### Tools
+Quick one-off actions: manual Plex scans (Movies via Ctrl+M, Shows via Ctrl+T), test the SSH and
+Plex connections, and open the config folder. This is the home for keypress utilities.
 
 ### Settings
 The single place to configure the SSH connection (host/port/user, key or password, Test button),
-remote Movies/Shows base paths, the Plex URL + token (Test, list sections, map which is Movies and
-which is Shows), the local staging path, the naming scheme, and cleanup defaults. Secrets are
-entered here and stored encrypted.
+the split/unified topology and the storage->mount path mapping, remote Movies/Shows/staging paths,
+the Plex URL + token (Test, list sections, map Movies/Shows), the naming scheme, and cleanup
+defaults. Secrets are entered here and stored DPAPI-encrypted.
 
 ## Naming
 

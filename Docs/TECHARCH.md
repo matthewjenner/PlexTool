@@ -18,24 +18,27 @@
 PlexTool/
   Src/
     PlexTool.Core/                 # Pure logic, no UI/IO/platform deps
-      Naming/                      # NameSanitizer, EpisodeParser, PlexNamer
-      Planning/                    # FolderStructurePlan, RenamePlan, ImportPlan
-      Cleanup/                     # EmptyFolderScanner (over IMediaFileSystem)
-      IMediaFileSystem.cs          # Interface only - list/stat/mkdir/rename/delete/write
+      MediaEntry.cs / MediaKind.cs / IMediaFileSystem.cs
+      Paths/PosixPath.cs           # Normalize / Combine / TranslatePrefix / IsSafeSegment / ContainsTraversal
+      Naming/                      # NamingScheme, NameSanitizer, EpisodeParser, PlexNamer, SubtitleName
+      Planning/                    # RenamePlanner, ImportPlanner
+      Cleanup/EmptyFolderScanner.cs
     PlexTool.App/                  # Avalonia + all I/O
-      Backends/                    # LocalMediaFileSystem, SftpMediaFileSystem, SshCommandRunner
-      Services/                    # AppHost, SettingsStore, AppSettings, Secrets, SecretStore,
-                                   #   AppPaths, UpdateService, AppVersion, PlexClient, ConnectionManager
-      Execution/                   # ImportRunner, RenameExecutor, StructureCreator, CleanupRunner, WatchService
-      ViewModels/                  # One VM per tab + MainWindowViewModel
+      Backends/                    # LocalMediaFileSystem, SftpMediaFileSystem, SshService
+      Services/                    # AppHost, AppPaths, AppSettings, SettingsStore, Secrets, SecretStore,
+                                   #   PlexClient, UpdateService, AppVersion
+      ViewModels/                  # MainWindowViewModel + one per tab (Settings/Rename/Import/Cleanup/Tools),
+                                   #   OperationTarget, ViewModelBase
       Views/                       # MainWindow + one View per tab
       App.axaml / Program.cs / app.manifest
   Tests/
-    PlexTool.Core.Tests/           # xUnit; InMemoryMediaFileSystem fake
+    PlexTool.Core.Tests/           # xUnit v2; InMemoryMediaFileSystem fake
+    PlexTool.App.Tests/            # xUnit v3; headless Avalonia layout tests
 ```
 
-Only the **Services** layer (settings, secrets, updates, host) and the **shell** (Program, App,
-MainWindow, update banner) exist as of phase 0. The rest lands phase by phase (see workplan).
+Execution lives in the per-tab ViewModels (each connects via `SshService.ConnectAsync` or
+`LocalMediaFileSystem`, runs the Core planner off the UI thread, then applies the plan), rather than
+in separate "runner" classes - the plan objects are the seam, so no extra layer was needed.
 
 ## The core abstraction: IMediaFileSystem
 
@@ -45,12 +48,17 @@ backend satisfy:
 ```csharp
 public interface IMediaFileSystem
 {
-    IEnumerable<MediaEntry> List(string path);         // files + dirs, with mtime/size/kind
-    bool Exists(string path);
-    void CreateDirectory(string path);
-    void Move(string source, string destination);      // in-place rename / move, never copy+delete
+    string Description { get; }
+    char DirectorySeparator { get; }
+    string Combine(string basePath, string child);
+    bool DirectoryExists(string path);
+    bool FileExists(string path);
+    IReadOnlyList<MediaEntry> List(string path);        // entries carry name/kind/size/mtime/IsSymbolicLink
+    void CreateDirectory(string path);                  // creates parents; idempotent
+    void Move(string source, string destination);       // in-place; never copy+delete, never overwrite (throws)
     void Delete(string path);
-    Stream OpenWrite(string path);                      // for uploads
+    Stream OpenRead(string path);
+    Stream OpenWrite(string path);
 }
 ```
 
@@ -87,8 +95,33 @@ User picks a staged item + classifies it
 - **Work**: SFTP connect, transfers, remote commands, and scans run on background tasks. Progress
   (`IProgress<T>`) and completion are marshaled with `Dispatcher.UIThread.Post(...)` before any
   `PropertyChanged`.
-- **ConnectionManager** owns the live SSH/SFTP session; SSH.NET clients are not thread-safe, so
-  access is serialized.
+- SSH.NET clients are **not thread-safe**; each operation connects, works, and disposes, so no
+  session is shared across threads.
+
+## Topology: which box does what, and why
+
+Media storage and Plex may be the same machine or two machines. PlexTool models this explicitly:
+
+- **SSH/SFTP always targets the STORAGE box** - the machine whose filesystem actually holds the
+  media. All file work (mkdir, rename, move, delete) happens there, natively.
+- **The Plex API always targets the PLEX box** over **HTTP + `X-Plex-Token`**. Library scans are a
+  web request, *not* an SSH command, so PlexTool never needs a shell on the Plex machine.
+
+Two consequences worth stating, because they are easy to get wrong:
+
+1. It is always **one SSH credential (storage) + one Plex token** - never two SSH credentials. The
+   token is an HTTP header, not an SSH login.
+2. **Write to the storage box directly, not through Plex's mount.** In a split setup the Plex box
+   mounts the storage over SMB/NFS; writing through that mount would send every byte across the
+   network twice (client -> Plex -> storage) and inherit the mount's ownership quirks. Writing
+   natively on the storage box is one hop with real permissions.
+
+In a **split** setup the same media appears at a different path on each box (e.g. `/srv/plex-media`
+on storage, `/mnt/media` on Plex). `AppSettings.PlexStorageIsSeparate` plus a storage-prefix /
+plex-mount-prefix pair drives `AppSettings.ToPlexPath()`, which rebases a written path into the path
+Plex knows for path-scoped scans. In a **unified** setup the toggle is off and no translation occurs.
+The prefix swap is segment-boundary safe via `PosixPath.TranslatePrefix` (so `/srv/plex-media` never
+matches `/srv/plex-media-extra`).
 
 ## Persistence and secrets
 

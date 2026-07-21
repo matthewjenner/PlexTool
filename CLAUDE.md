@@ -25,11 +25,21 @@ decisions log). This file is the quick orientation - read it first.
 ## Layout
 
 ```
-Src/PlexTool.Core/      Pure logic - naming, planning, cleanup scanning, the IMediaFileSystem
-                        abstraction. No UI, no I/O, no platform deps. Fully unit-testable.
-Src/PlexTool.App/       Avalonia app + all I/O. Backends (local + SFTP), Services, Execution
-                        runners, ViewModels, Views.
-Tests/PlexTool.Core.Tests/   xUnit tests for Core (against an in-memory IMediaFileSystem fake).
+Src/PlexTool.Core/      Pure logic, no UI/IO/platform deps. Fully unit-tested.
+   MediaEntry, IMediaFileSystem, MediaKind
+   Paths/PosixPath              Normalize/Combine/TranslatePrefix/IsSafeSegment (remote paths)
+   Naming/                      NamingScheme, NameSanitizer, EpisodeParser, PlexNamer, SubtitleName
+   Planning/                    RenamePlanner, ImportPlanner
+   Cleanup/EmptyFolderScanner
+Src/PlexTool.App/       Avalonia app + all I/O.
+   Backends/                    LocalMediaFileSystem, SftpMediaFileSystem, SshService
+   Services/                    AppHost, AppPaths, AppSettings, SettingsStore, Secrets, SecretStore,
+                                PlexClient, UpdateService, AppVersion
+   ViewModels/                  MainWindow + one per tab (Settings/Rename/Import/Cleanup/Tools),
+                                OperationTarget, ViewModelBase
+   Views/                       MainWindow + one View per tab
+Tests/PlexTool.Core.Tests/   xUnit (v2) for Core, against an in-memory IMediaFileSystem fake.
+Tests/PlexTool.App.Tests/    Headless Avalonia (xunit v3) - SettingsLayoutTests (footer/scroll regression).
 Docs/                   DESIGN.md, TECHARCH.md, workplan.md.
 Scripts/                Bash helpers - run.sh (clean+build+run), bump-version.sh.
 .github/workflows/      release.yml - reads Directory.Build.props, ships via Velopack.
@@ -57,20 +67,34 @@ This is the direct analogue of Klakr's `IInputHook`/`IInputSimulator` living in 
 all parsing/planning/scanning logic testable with an in-memory fake and no real server. Do not
 pull Avalonia, SSH.NET, or filesystem calls into Core.
 
-## The four operations (each a tab)
+## The tabs (Import | Rename | Cleanup | Tools | Settings)
 
 Every operation follows the same shape: **compute a plan -> show it as a reviewable list ->
 user confirms -> apply**. That is the GUI form of the scripts' universal `-WhatIf`/`-DryRun`.
+Nothing overwrites: collisions are shown and skipped, and `IMediaFileSystem.Move` throws rather
+than clobber.
 
-- **Import** - staging folder to server: classify Movie/Show, create the remote structure over
-  SFTP, upload with byte-progress, verify, delete local source (move semantics), trigger a Plex
-  scan of just that path. Watch mode auto-imports new arrivals.
-- **New Structure** - create `Movie (Year)` or `Show/Season NN` folders, local or remote.
-- **Rename / Normalize** - rename to the Plex form; in-place only (SFTP rename / local move,
-  never copy-then-delete) so Plex keeps watched state and metadata. Includes the bulk
-  "normalize an existing library" pass. Always dry-run preview first.
-- **Cleanup** - remove empty folders deepest-first with a min-age gate, name exclusions, symlink
-  skip, and optional prune-empty-parents. Local or remote; once or watch.
+- **Import** (`ImportViewModel`, `ImportPlanner`) - server-only: move a staged item from the
+  storage box's staging folder into the library. Builds the target folders, renames each file to
+  Plex form, moves them as an instant **server-side rename** (staging and library share the
+  filesystem - no upload), optionally removes the emptied source, then triggers a path-scoped Plex
+  scan (`ToPlexPath`-translated). **Import absorbed the old "New Structure" tab** - it builds the
+  tree as part of importing; standalone empty-folder creation was dropped.
+- **Rename / Normalize** (`RenameViewModel`, `RenamePlanner`) - scan a Movies/Shows library and
+  rename media in place toward Plex form (`Movie (Year).ext`, `Show - S01E01.ext`). In-place only
+  (SFTP `RenameFile` / local `File.Move`, never copy-then-delete) so Plex keeps watched state.
+  Per-row select; the bulk normalize pass. Server or Local.
+- **Cleanup** (`CleanupViewModel`, `EmptyFolderScanner`) - remove empty folders deepest-first with a
+  min-age gate, wildcard name exclusions, symlink skip, and optional prune-empty-parents. Empty
+  folders only, never files. Server (Movies/Shows/Staging/Custom) or Local.
+- **Tools** (`ToolsViewModel`) - quick one-off actions: manual Plex scans (Ctrl+M / Ctrl+T via
+  window `KeyBindings`), Test SSH, Test Plex, Open config folder. This is the home for utility
+  actions - see "Add a Tools utility" below.
+- **Settings** (`SettingsViewModel`) - SSH, split/unified topology + path mapping, remote paths,
+  staging, Plex + library mapping, naming, cleanup defaults, and the encrypted secrets.
+
+**Deferred (see workplan):** watch/monitor modes (auto-import, continuous cleanup) and
+local->remote upload import (staging is remote, so import is a rename today, not an upload).
 
 ## Secrets and settings (hard requirement: no leaked passwords)
 
@@ -93,7 +117,7 @@ user confirms -> apply**. That is the GUI form of the scripts' universal `-WhatI
 - **MVVM**: ViewModels never reference Views. Use CommunityToolkit.Mvvm `[ObservableProperty]`
   and `[RelayCommand]` source generators rather than hand-rolling `INotifyPropertyChanged`.
 - **ASCII punctuation only** in all UI text, code, comments, and docs. No em-dashes, en-dashes,
-  or unicode ellipsis - write "-" and "...". The user notices AI-artifact punctuation.
+  or unicode ellipsis - write "-" and "...". Text that reads as machine-generated is a defect here.
 - **Preview before apply**: no operation mutates the filesystem (local or remote) without first
   showing the computed plan for confirmation.
 - **In-place renames**: never copy-then-delete to rename; it makes Plex treat the file as new
@@ -102,12 +126,32 @@ user confirms -> apply**. That is the GUI form of the scripts' universal `-WhatI
   back via `Dispatcher.UIThread.Post(...)` before raising `PropertyChanged`.
 - **Naming**: ViewModels end in `ViewModel`. Views end in `Window` or `View`.
 
+## Dependency policy
+
+- **Stay on the latest stable version**, and **verify it from the registry before pinning** - do not
+  rely on recall. Check `https://api.nuget.org/v3-flatcontainer/<package-id-lowercase>/index.json`
+  (or nuget.org) and take the highest non-preview/rc/beta version. The same applies to GitHub
+  Actions `uses:` pins - confirm the current major from the action's own `action.yml`.
+- **Two standing exceptions** (see Gotchas for why): the **Avalonia** family stays on the latest
+  **12.x** and every Avalonia package moves together; **FluentAssertions** stays on **7.x**.
+- Record the versions chosen (and the date checked) in `Docs/TECHARCH.md` under Dependencies.
+
+## Keeping the workplan current
+
+`Docs/workplan.md` is the living build tracker - current phase, what is done, what is next, the
+decisions log, and the deferred/backlog list. It is a repo file, not scratch notes: at each feature
+or phase boundary, tick off the done items, refresh the **Current state** block, and append anything
+notable to **Decisions log** / **Deferred** / **Backlog**. A decision that was deliberately made and
+might otherwise be re-litigated (or re-discovered the hard way) belongs there.
+
 ## Releasing / versioning (identical to Klakr)
 
 - Version lives in `Directory.Build.props` as a single `<VersionPrefix>`.
 - `./Scripts/bump-version.sh` (default Patch; pass `Minor`/`Major`) bumps it. Do this whenever a
   feature or behavior change is complete and will ship, ideally in the same commit. Do NOT bump
-  for docs, comments, memory updates, or refactors with no user-visible effect.
+  for docs, comments, or refactors with no user-visible effect - a push without a bump is a
+  deliberate no-op (CI skips when the release already exists), so docs commits do not clutter the
+  release list.
 - Push to `main`: `.github/workflows/release.yml` reads the version, skips if the `vX.Y.Z`
   release already exists, else tests + publishes win-x64 self-contained + `vpk pack --packId
   PlexTool --mainExe PlexTool.App.exe` + creates the GitHub release. Plain pushes without a bump
@@ -127,10 +171,16 @@ user confirms -> apply**. That is the GUI form of the scripts' universal `-WhatI
   path). Rename in place, and test a small batch before a full library normalize.
 - **Remote cleanup skips symlinks**, not Windows reparse points - the server is Linux. The min-age
   gate, name exclusions, and deepest-first ordering from the script are preserved.
-- **Plex scan**: prefer a partial-path scan (`?path=...`) of just the imported folder over a full
-  section refresh, so it is fast.
-- **Icon**: `Assets\icon.ico` and the `<ApplicationIcon>` reference are deferred to P6 - the
-  csproj currently has no app icon on purpose.
+- **Plex scan**: `PlexClient.RefreshAsync` does a partial-path scan (`?path=...`) of just the
+  imported folder when given a path, else a full-section refresh. Import passes
+  `settings.ToPlexPath(scanPath)` so the split-topology mount prefix is used.
+- **ScrollViewer padding**: never put `Padding` on a `ScrollViewer` - it is excluded from the scroll
+  extent, so the bottom padding's worth of content becomes unreachable (this caused the Settings
+  footer overlap). Put the padding/margin on the inner content instead. `SettingsLayoutTests` guards this.
+- **Layout tests select the Settings tab by header, not index** - adding/removing tabs must not
+  break them.
+- **New tab = 5 wiring points**: a `ViewModel`, a `View` (+`.axaml.cs`), a property on
+  `MainWindowViewModel`, and a `<TabItem>` in `MainWindow.axaml`.
 
 ## Input safety and test rigor (required)
 
@@ -158,6 +208,9 @@ trailing slashes, or traversal/injection attempts. Rules:
   `AppHost.UpdateSecrets`.
 - **Add a media operation backend method**: extend `IMediaFileSystem` in Core, implement in both
   `LocalMediaFileSystem` and `SftpMediaFileSystem`, and in the in-memory test fake.
+- **Add a Tools utility (quick action)**: add a `[RelayCommand]` method to `ToolsViewModel` (set
+  `Result` with the outcome), a button in `ToolsView.axaml`, and optionally a `<KeyBinding>` in
+  `MainWindow.axaml`'s `<Window.KeyBindings>`. This is the intended home for keypress utilities.
 - **Cut a release**: `./Scripts/bump-version.sh`, commit, push to `main`.
 
 ## What NOT to do
@@ -167,4 +220,6 @@ trailing slashes, or traversal/injection attempts. Rules:
 - Don't pull UI/SSH/filesystem dependencies into `PlexTool.Core`.
 - Don't rename by copy-then-delete (breaks Plex watched state).
 - Don't mutate the filesystem without a preview/confirm step.
+- Don't let `Move` overwrite - collisions are surfaced and skipped, never clobbered.
+- Don't put `Padding` on a `ScrollViewer` (see gotchas).
 - Don't bump FluentAssertions to 8.x (paid license).

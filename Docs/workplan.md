@@ -2,7 +2,8 @@
 
 Living build tracker. Functions like a todo list and micro plan. Update it at each phase
 boundary: check off done items, refresh **Current state**, and append to the **Decisions log** /
-**Known edges**. Keep memories current at the same time. ASCII punctuation only.
+**Known edges** / **Backlog**. This file plus `CLAUDE.md` are the source of truth - a decision
+recorded here should not need to live in anyone's head or local notes. ASCII punctuation only.
 
 ## Current state
 
